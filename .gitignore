@@ -4,6 +4,9 @@
 .env
 .env.local
 push_to_github.ps1
+*.ipa
+*.exe
+
 
 # Node / Frontend
 node_modules/
