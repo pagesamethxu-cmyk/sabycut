@@ -5,7 +5,6 @@ import com.sabycut.core.entity.User;
 import com.sabycut.core.repository.EncryptedKeyRepository;
 import com.sabycut.core.repository.UserRepository;
 import com.sabycut.core.security.EncryptedVaultService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;

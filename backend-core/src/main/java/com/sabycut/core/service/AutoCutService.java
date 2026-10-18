@@ -12,7 +12,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -234,7 +233,6 @@ public class AutoCutService {
     private String buildTimelineJson(AutoCutRequest request, Map<String, Object> aiResult) {
         double duration = request.videoDuration() != null && request.videoDuration() > 0 ? request.videoDuration() : 24.0;
         String preset = request.formPreset() != null ? request.formPreset() : "tiktok";
-        String prompt = request.prompt() != null ? request.prompt() : "";
 
         // Check if aiResult returned EDL
         List<Map<String, Object>> cutsList = new ArrayList<>();
@@ -389,6 +387,7 @@ public class AutoCutService {
         throw new IllegalArgumentException("Job not found: " + jobId);
     }
 
+    @SuppressWarnings("unchecked")
     public String handlePartialEdit(User user, PartialEditRequest request) {
         String instruction = request.instruction() != null ? request.instruction().toLowerCase() : "";
         String provider = request.provider() != null ? request.provider().toUpperCase() : "GEMINI";

@@ -60,3 +60,38 @@ npm install
 npm run dev
 ```
 Web client runs on `http://localhost:3000`.
+
+---
+
+## Mobile layout and safe areas
+
+### 1. Architectural Principles
+- **Viewport Meta Configuration**: `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">`.
+- **CSS Safe Inset Variables**: Root CSS variables `--sat`, `--sab`, `--sal`, and `--sar` map to `env(safe-area-inset-*)` with fallback to `0px`.
+- **Dynamic Viewport Height**: Replaced fixed `100vh` with `var(--app-height, 100dvh)` synchronized dynamically with `window.visualViewport` on resize and orientationchange events.
+- **Overscroll & Root Pinning**: App shell root pinned with `position: fixed; inset: 0; overflow: hidden` to eliminate unwanted rubber-banding bounce while allowing inner panels to scroll.
+- **Mobile Touch Targets**: All interactive buttons enforce a minimum touch target bounding box of 44x44 px and keep essential controls out of the 16 px display perimeter.
+- **Capacitor Android 15+ Edge-to-Edge**: Configured transparent system bars with `WindowCompat.setDecorFitsSystemWindows(false)`, `layoutInDisplayCutoutMode = shortEdges`, and `android:windowSoftInputMode = adjustResize`.
+- **Capacitor iOS Configuration**: Configured `contentInset: "always"`, StatusBar overlay, and home indicator bottom clearance.
+
+### 2. Testing the Mobile Safe Areas
+Run the automated Playwright test suite validating 12 distinct mobile device viewports (portrait and landscape, punch-hole cameras, notches, Dynamic Island, tablets, and foldables):
+
+```bash
+cd frontend
+npx playwright test tests/safe-areas.spec.ts
+```
+
+Run the full end-to-end acceptance suite covering Home Screen redesign, Settings 9-section vault, AI key guard, and safe area assertions:
+
+```bash
+cd frontend
+npx playwright test
+```
+
+### 3. Visual Debug Overlay
+To visualize physical safe area boundaries directly on any device:
+1. Tap the Settings icon in the top header.
+2. Select the Debug tab in the sidebar.
+3. Toggle "Safe Area Boundaries Overlay" ON.
+4. Red, green, and blue boundary lines with live inset diagnostics will overlay the screen.

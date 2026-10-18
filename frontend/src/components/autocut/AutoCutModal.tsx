@@ -13,7 +13,8 @@ import {
   Trash2, 
   AlertCircle,
   Clock,
-  Radio
+  Radio,
+  Check
 } from 'lucide-react';
 import { t } from '../../i18n';
 import { api, KeyInfo } from '../../services/api';
@@ -847,7 +848,7 @@ export const AutoCutModal: React.FC<AutoCutModalProps> = ({ isOpen, onClose, onA
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      {isDone ? '✓' : stepItem.num}
+                      {isDone ? <Check size={12} strokeWidth={3} /> : stepItem.num}
                     </div>
                     <div>
                       <div style={{ fontSize: '12px', fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#ffffff' : '#94a3b8' }}>
