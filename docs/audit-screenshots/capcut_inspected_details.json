@@ -1,0 +1,38 @@
+{
+  "ratioOptions": [],
+  "zoomOptions": [],
+  "exportOptions": {
+    "allTexts": [
+      "Click to upload",
+      "Or drag and drop file here",
+      "Ratio",
+      "00:00:00"
+    ],
+    "inputs": []
+  },
+  "shortcutTarget": {
+    "tag": "DIV",
+    "ariaLabel": null
+  },
+  "shortcutList": [
+    "or drop your media here",
+    "202610182319",
+    "100%",
+    "0",
+    "Click to upload",
+    "Or drag and drop file here",
+    "Ratio",
+    "00:00:00"
+  ],
+  "propertiesData": {
+    "tabs": [],
+    "sections": [
+      "0",
+      "Export"
+    ],
+    "labelsAndTexts": [
+      "0",
+      "Export"
+    ]
+  }
+}

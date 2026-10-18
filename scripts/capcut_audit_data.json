@@ -1,0 +1,390 @@
+{
+  "timestamp": "2026-10-18T16:04:18.444Z",
+  "panels": {
+    "Media": {
+      "tab": "Media",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive"
+      ]
+    },
+    "Templates": {
+      "tab": "Templates",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive"
+      ]
+    },
+    "Elements": {
+      "tab": "Elements",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive"
+      ]
+    },
+    "Audio": {
+      "tab": "Audio",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive"
+      ]
+    },
+    "Text": {
+      "tab": "Text",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive"
+      ]
+    },
+    "Captions": {
+      "tab": "Captions",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from",
+        "Export"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive",
+        "icon-button",
+        "Export"
+      ]
+    },
+    "Transcript": {
+      "tab": "Transcript",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from",
+        "Export"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive",
+        "icon-button",
+        "Export"
+      ]
+    },
+    "Effects": {
+      "tab": "Effects",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from",
+        "Export"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive",
+        "icon-button",
+        "Export"
+      ]
+    },
+    "Transitions": {
+      "tab": "Transitions",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from",
+        "Export"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive",
+        "icon-button",
+        "Export"
+      ]
+    },
+    "Filters": {
+      "tab": "Filters",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from",
+        "Export"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive",
+        "icon-button",
+        "Export"
+      ]
+    },
+    "Brand kit": {
+      "tab": "Brand kit",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from",
+        "Export"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive",
+        "icon-button",
+        "Export"
+      ]
+    },
+    "Plugins": {
+      "tab": "Plugins",
+      "headers": [
+        "Sign in to upload items\nDrop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Sign in to upload items",
+        "Drop your image here to upload\nWhat do you want to create?\n\n\n\n\nSeedance 1.0 Fast\nUploads\nGenerated\nUpload\nor drop your media here\n\nYou can also upload from",
+        "Drop your image here to upload",
+        "What do you want to create?\n\n\n\n\nSeedance 1.0 Fast",
+        "What do you want to create?",
+        "Seedance 1.0 Fast",
+        "Uploads\nGenerated",
+        "Upload\nor drop your media here\n\nYou can also upload from",
+        "Upload\nor drop your media here",
+        "or drop your media here",
+        "You can also upload from",
+        "Export"
+      ],
+      "inputs": [],
+      "buttons": [
+        "Upload images as keyframes",
+        "Video",
+        "Seedance 1.0 Fast",
+        "Uploads",
+        "Generated",
+        "Upload\nor drop your media here",
+        "Upload from phone",
+        "Dropbox",
+        "Google Drive",
+        "icon-button",
+        "Export"
+      ]
+    }
+  },
+  "previewControls": [
+    {
+      "control": "Ratio Dropdown",
+      "options": []
+    }
+  ],
+  "timelineControls": [],
+  "rightPanel": {
+    "tabs": [],
+    "labels": [
+      "0",
+      "Export"
+    ]
+  },
+  "exportDialog": [],
+  "shortcuts": []
+}

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { platformQuirks } from './services/codecSafety';
 
 // Manage dynamic visual viewport height for mobile keyboards, URL bars, and system bars
 function initViewportHeight(): void {
@@ -21,6 +22,7 @@ function initViewportHeight(): void {
 }
 
 initViewportHeight();
+platformQuirks.init();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

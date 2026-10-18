@@ -1,0 +1,22 @@
+{
+  "texts": [
+    "0",
+    "Export",
+    "Presets",
+    "Basic",
+    "Text to speech",
+    "AI avatars",
+    "Animation",
+    "Motion tracking",
+    "Make custom fonts with AI",
+    "Create your own fonts with a simple prompt!"
+  ],
+  "inputs": [
+    {
+      "tag": "TEXTAREA",
+      "type": "textarea",
+      "val": "",
+      "placeholder": ""
+    }
+  ]
+}

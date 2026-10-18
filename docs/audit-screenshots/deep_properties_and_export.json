@@ -1,0 +1,84 @@
+{
+  "rightPanelData": {
+    "Basic": {
+      "texts": [
+        "0",
+        "Export"
+      ],
+      "inputs": [],
+      "screenshot": "text_prop_basic.png"
+    },
+    "Presets": {
+      "texts": [
+        "0",
+        "Export"
+      ],
+      "inputs": [],
+      "screenshot": "text_prop_presets.png"
+    },
+    "Text to speech": {
+      "texts": [
+        "0",
+        "Export",
+        "CapCut plugin is now on ChatGPT",
+        "Copy prompt"
+      ],
+      "inputs": [],
+      "screenshot": "text_prop_text_to_speech.png"
+    },
+    "Animation": {
+      "texts": [
+        "0",
+        "Export",
+        "CapCut plugin is now on ChatGPT",
+        "Copy prompt"
+      ],
+      "inputs": [],
+      "screenshot": "text_prop_animation.png"
+    },
+    "Motion tracking": {
+      "texts": [
+        "0",
+        "Export"
+      ],
+      "inputs": [],
+      "screenshot": "text_prop_motion_tracking.png"
+    }
+  },
+  "clipContextMenu": [
+    "or drop your media here",
+    "View all"
+  ],
+  "canvasContextMenu": [
+    "View all",
+    "Next"
+  ],
+  "exportSettings": {
+    "texts": [
+      "Text effects",
+      "View all",
+      "202610182325",
+      "100%",
+      "0",
+      "Click to upload",
+      "Or drag and drop file here",
+      "Ratio",
+      "00:00:00",
+      "Material resources",
+      "1/2",
+      "Next"
+    ],
+    "inputs": [
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "placeholder": "",
+        "value": "202610182325",
+        "ariaLabel": null
+      }
+    ],
+    "buttons": [
+      "Next"
+    ]
+  }
+}

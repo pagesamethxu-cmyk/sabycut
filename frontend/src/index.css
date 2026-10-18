@@ -38,9 +38,11 @@ html, body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-khmer);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -webkit-touch-callout: none;
   user-select: none;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
@@ -136,5 +138,19 @@ input, textarea, select {
   .primary-actions-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* Khmer Typography Protection against Subscript Clipping */
+.khmer-text, [lang="km"], :lang(km) {
+  line-height: 1.6;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-rendering: optimizeLegibility;
+}
+
+/* Virtual Keyboard Viewport Adjustment */
+:root {
+  --visual-viewport-height: 100dvh;
+  --visual-viewport-offset-top: 0px;
 }
 

@@ -122,7 +122,23 @@ export interface ColorGrading {
 }
 
 export interface EffectSettings {
-  type: 'none' | 'blur' | 'glitch' | 'shake' | 'zoom_pulse' | 'rgb_split' | 'film_grain' | 'light_leak' | 'vhs' | 'flash' | 'mirror';
+  type:
+    | 'none'
+    | 'blur'
+    | 'glitch'
+    | 'shake'
+    | 'zoom_pulse'
+    | 'rgb_split'
+    | 'film_grain'
+    | 'light_leak'
+    | 'vhs'
+    | 'flash'
+    | 'mirror'
+    | 'neon_body'
+    | 'cyber_glow'
+    | 'angel_wings'
+    | 'halo'
+    | 'lightning';
   intensity: number; // 0 to 100
   speed?: number; // 0 to 100
 }
@@ -152,6 +168,9 @@ export interface TextProperties {
   italic: boolean;
   underline: boolean;
   animation?: string;
+  curvedRadius?: number;
+  motionTracking?: boolean;
+  ttsVoice?: string;
 }
 
 export interface CaptionWord {
@@ -257,6 +276,11 @@ export interface ProjectTimeline {
   clips: TimelineClip[];
   markers: TimelineMarker[];
   sources: MediaSource[];
+  brandKit?: {
+    colors: string[];
+    fonts: string[];
+    watermarkLogo?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

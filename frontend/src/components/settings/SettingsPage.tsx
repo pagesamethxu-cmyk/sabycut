@@ -18,11 +18,21 @@ import {
   Trash2,
   Check,
   ChevronRight,
-  Lock
+  Lock,
+  Cpu
 } from 'lucide-react';
 import { t, getCurrentLanguage, setLanguage, SupportedLanguage } from '../../i18n';
 import { api, KeyInfo } from '../../services/api';
 import { User } from '../../types';
+import {
+  detectDeviceCapabilities,
+  getActiveQualityProfile,
+  getPerformanceMode,
+  setPerformanceMode,
+  DeviceCapabilityReport,
+  QualityProfile,
+  PerformanceMode
+} from '../../services/deviceCapability';
 
 export type SettingsSection =
   | 'account'
@@ -32,6 +42,7 @@ export type SettingsSection =
   | 'storage'
   | 'exportDefaults'
   | 'keyboardShortcuts'
+  | 'devicePerformance'
   | 'about'
   | 'debug';
 
@@ -96,11 +107,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [serverUrlInput, setServerUrlInput] = useState(() => localStorage.getItem('sabycut_server_url') || 'http://192.168.1.8:8080');
   const [serverStatusMsg, setServerStatusMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
-  // Load keys on open
+  // Device & Performance State
+  const [deviceReport, setDeviceReport] = useState<DeviceCapabilityReport | null>(null);
+  const [activeProfile, setActiveProfile] = useState<QualityProfile>(getActiveQualityProfile());
+  const [perfMode, setPerfMode] = useState<PerformanceMode>(getPerformanceMode());
+  const [proxyEnabled, setProxyEnabled] = useState(() => localStorage.getItem('sabycut_proxy_editing') !== 'false');
+  const [cacheClearNotice, setCacheClearNotice] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportCopiedNotice, setReportCopiedNotice] = useState(false);
+  const [reportSentNotice, setReportSentNotice] = useState(false);
+
+  // Load keys and device capabilities on open
   useEffect(() => {
     if (isOpen) {
       loadKeys();
       updateProjectsCount();
+      detectDeviceCapabilities().then((rep) => {
+        setDeviceReport(rep);
+        setActiveProfile(getActiveQualityProfile(rep));
+      });
     }
   }, [isOpen]);
 
@@ -299,6 +324,70 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   };
 
+  const handlePerfModeChange = (mode: PerformanceMode) => {
+    setPerfMode(mode);
+    const updated = setPerformanceMode(mode);
+    setActiveProfile(updated);
+  };
+
+  const handleToggleProxy = () => {
+    const nextVal = !proxyEnabled;
+    setProxyEnabled(nextVal);
+    localStorage.setItem('sabycut_proxy_editing', String(nextVal));
+  };
+
+  const handleClearPreviewCache = () => {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('sabycut_preview_') || k.startsWith('sabycut_thumb_'))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      setCacheClearNotice(true);
+      setTimeout(() => setCacheClearNotice(false), 3000);
+    } catch {
+      // Ignore
+    }
+  };
+
+  const generateDiagnosticReport = () => {
+    return {
+      timestamp: new Date().toISOString(),
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+      screen: {
+        width: typeof window !== 'undefined' ? window.innerWidth : 0,
+        height: typeof window !== 'undefined' ? window.innerHeight : 0,
+        dpr: typeof window !== 'undefined' ? window.devicePixelRatio : 1
+      },
+      deviceReport: deviceReport,
+      performanceMode: perfMode,
+      activeProfile: activeProfile,
+      proxyEnabled: proxyEnabled,
+      recentErrors: (window as unknown as { __sabycut_error_log?: string[] }).__sabycut_error_log || []
+    };
+  };
+
+  const handleCopyReport = () => {
+    const data = JSON.stringify(generateDiagnosticReport(), null, 2);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(data).then(() => {
+        setReportCopiedNotice(true);
+        setTimeout(() => setReportCopiedNotice(false), 3000);
+      });
+    }
+  };
+
+  const handleSubmitReport = () => {
+    setReportSentNotice(true);
+    setTimeout(() => {
+      setReportSentNotice(false);
+      setIsReportModalOpen(false);
+    }, 2000);
+  };
+
   const sectionsList: { id: SettingsSection; label: string; icon: React.ReactNode }[] = [
     { id: 'account', label: t('settings.sections.account'), icon: <UserIcon size={16} /> },
     { id: 'aiProvider', label: t('settings.sections.aiProvider'), icon: <Sparkles size={16} /> },
@@ -307,6 +396,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     { id: 'storage', label: t('settings.sections.storage'), icon: <HardDrive size={16} /> },
     { id: 'exportDefaults', label: t('settings.sections.exportDefaults'), icon: <Film size={16} /> },
     { id: 'keyboardShortcuts', label: t('settings.sections.keyboardShortcuts'), icon: <Keyboard size={16} /> },
+    { id: 'devicePerformance', label: t('settings.sections.devicePerformance'), icon: <Cpu size={16} /> },
     { id: 'about', label: t('settings.sections.about'), icon: <Info size={16} /> },
     { id: 'debug', label: t('settings.sections.debug'), icon: <Bug size={16} /> }
   ];
@@ -1312,6 +1402,285 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
           )}
 
+          {/* SECTION: DEVICE & PERFORMANCE */}
+          {activeSection === 'devicePerformance' && (
+            <div data-testid="section-devicePerformance" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{
+                backgroundColor: '#141826',
+                border: '1px solid #262d46',
+                borderRadius: '16px',
+                padding: '20px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>
+                    {t('settings.devicePerformance.title')}
+                  </h2>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: activeProfile.tier === 'high' ? 'rgba(34, 197, 94, 0.15)' : activeProfile.tier === 'mid' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                    color: activeProfile.tier === 'high' ? '#4ade80' : activeProfile.tier === 'mid' ? '#60a5fa' : '#facc15'
+                  }}>
+                    {activeProfile.tier.toUpperCase()} TIER
+                  </span>
+                </div>
+                <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '18px' }}>
+                  {t('settings.devicePerformance.desc')}
+                </p>
+
+                {/* Detected Tier Summary */}
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: '#1b1f30',
+                  border: '1px solid #2c344e',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>
+                    {t('settings.devicePerformance.detectedTier')}
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', marginBottom: '4px' }}>
+                    {deviceReport?.assignedTier === 'low'
+                      ? t('settings.devicePerformance.tierLow')
+                      : deviceReport?.assignedTier === 'high'
+                      ? t('settings.devicePerformance.tierHigh')
+                      : t('settings.devicePerformance.tierMid')}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    Preview: {activeProfile.previewWidth}x{activeProfile.previewHeight} @ {activeProfile.previewFps}fps | Max Video Layers: {activeProfile.maxConcurrentVideoLayers} | Engine: {activeProfile.renderEngine}
+                  </div>
+                </div>
+
+                {/* Performance Mode Selector */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#f8fafc', marginBottom: '8px' }}>
+                    {t('settings.devicePerformance.manualOverride')}
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                    {(['auto', 'low', 'mid', 'high'] as PerformanceMode[]).map((mode) => {
+                      const isSelected = perfMode === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          data-testid={`perf-mode-${mode}`}
+                          onClick={() => handlePerfModeChange(mode)}
+                          className="touch-target"
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            backgroundColor: isSelected ? '#4f46e5' : '#191d2c',
+                            border: `1px solid ${isSelected ? '#6366f1' : '#262c42'}`,
+                            color: isSelected ? '#ffffff' : '#94a3b8',
+                            fontSize: '12px',
+                            fontWeight: isSelected ? 700 : 500,
+                            cursor: 'pointer',
+                            textAlign: 'center'
+                          }}
+                        >
+                          {mode === 'auto'
+                            ? t('settings.devicePerformance.modeAuto')
+                            : mode === 'low'
+                            ? t('settings.devicePerformance.modeLow')
+                            : mode === 'mid'
+                            ? t('settings.devicePerformance.modeMid')
+                            : t('settings.devicePerformance.modeHigh')}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Hardware Specifications Table */}
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: '#1b1f30',
+                  border: '1px solid #2c344e',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', marginBottom: '10px' }}>
+                    {t('settings.devicePerformance.hardwareSpecs')}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: '#94a3b8' }}>{t('settings.devicePerformance.ram')}</span>
+                      <span style={{ color: '#f8fafc', fontWeight: 600 }}>{deviceReport ? `${deviceReport.ramGB} GB` : 'Probing...'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: '#94a3b8' }}>{t('settings.devicePerformance.cpuCores')}</span>
+                      <span style={{ color: '#f8fafc', fontWeight: 600 }}>{deviceReport ? `${deviceReport.cpuCores} Cores` : 'Probing...'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: '#94a3b8' }}>{t('settings.devicePerformance.gpuRenderer')}</span>
+                      <span style={{ color: '#cbd5e1', fontWeight: 500, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {deviceReport?.gpuRenderer || 'Software / Default'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: '#94a3b8' }}>{t('settings.devicePerformance.webglVersion')}</span>
+                      <span style={{ color: '#f8fafc', fontWeight: 600 }}>{deviceReport?.webglVersion.toUpperCase() || 'WEBGL2'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: '#94a3b8' }}>{t('settings.devicePerformance.webcodecs')}</span>
+                      <span style={{ color: deviceReport?.webcodecsSupported ? '#4ade80' : '#facc15', fontWeight: 600 }}>
+                        {deviceReport?.webcodecsSupported ? t('settings.devicePerformance.supported') : t('settings.devicePerformance.unsupported')}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: '#94a3b8' }}>{t('settings.devicePerformance.screenResolution')}</span>
+                      <span style={{ color: '#f8fafc', fontWeight: 600 }}>
+                        {typeof window !== 'undefined' ? `${window.innerWidth} x ${window.innerHeight}` : '375 x 667'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: '#94a3b8' }}>{t('settings.devicePerformance.pixelRatio')}</span>
+                      <span style={{ color: '#f8fafc', fontWeight: 600 }}>
+                        {typeof window !== 'undefined' ? `${window.devicePixelRatio}x` : '1x'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: '#94a3b8' }}>{t('settings.devicePerformance.storageAvailable')}</span>
+                      <span style={{ color: '#f8fafc', fontWeight: 600 }}>
+                        {deviceReport ? `${deviceReport.storage.availableMB} MB` : 'Checking...'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Proxy Editing Toggle */}
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: '#1b1f30',
+                  border: '1px solid #2c344e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+                      {t('settings.devicePerformance.proxyEditing')}
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      {t('settings.devicePerformance.proxyDesc')}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="proxy-editing-toggle"
+                    onClick={handleToggleProxy}
+                    className="touch-target"
+                    style={{
+                      width: '50px',
+                      height: '28px',
+                      borderRadius: '14px',
+                      backgroundColor: proxyEnabled ? '#4f46e5' : '#272b3b',
+                      position: 'relative',
+                      padding: '2px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      flexShrink: 0
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        backgroundColor: '#ffffff',
+                        transform: proxyEnabled ? 'translateX(22px)' : 'translateX(0px)',
+                        transition: 'transform 0.2s'
+                      }}
+                    />
+                  </button>
+                </div>
+
+                {/* Clear Preview Cache Button */}
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: '#1b1f30',
+                  border: '1px solid #2c344e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+                      {t('settings.devicePerformance.clearPreviewCache')}
+                    </div>
+                    {cacheClearNotice && (
+                      <span style={{ fontSize: '11px', color: '#4ade80' }}>
+                        {t('settings.devicePerformance.clearPreviewCacheSuccess')}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="clear-preview-cache-btn"
+                    onClick={handleClearPreviewCache}
+                    className="touch-target"
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: '#262d46',
+                      border: '1px solid #3b4568',
+                      color: '#f8fafc',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {t('settings.devicePerformance.clearPreviewCache')}
+                  </button>
+                </div>
+
+                {/* Report a Problem */}
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: '#1b1f30',
+                  border: '1px solid #2c344e'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', marginBottom: '4px' }}>
+                    {t('settings.devicePerformance.reportProblem')}
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '12px' }}>
+                    {t('settings.devicePerformance.reportProblemDesc')}
+                  </p>
+                  <button
+                    type="button"
+                    data-testid="open-report-problem-btn"
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="touch-target"
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      backgroundColor: '#3b82f6',
+                      border: 'none',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {t('settings.devicePerformance.reportProblem')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SECTION 8: ABOUT (Includes technology list moved from home screen) */}
           {activeSection === 'about' && (
             <div data-testid="section-about" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1658,6 +2027,131 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           }
         }
       `}</style>
+      {/* Diagnostic Report Modal */}
+      {isReportModalOpen && (
+        <div
+          data-testid="diagnostic-modal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            zIndex: 90,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#141826',
+              border: '1px solid #2c344e',
+              borderRadius: '16px',
+              maxWidth: '520px',
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '20px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc' }}>
+                {t('settings.devicePerformance.reportModalTitle')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsReportModalOpen(false)}
+                className="touch-target"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1b1f30',
+                  border: '1px solid #2b334d',
+                  color: '#cbd5e1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '12px' }}>
+              {t('settings.devicePerformance.reportModalNotice')}
+            </p>
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                backgroundColor: '#0c0e15',
+                border: '1px solid #20263a',
+                borderRadius: '8px',
+                padding: '10px',
+                fontFamily: 'monospace',
+                fontSize: '10px',
+                color: '#94a3b8',
+                marginBottom: '16px',
+                maxHeight: '260px'
+              }}
+            >
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(generateDiagnosticReport(), null, 2)}
+              </pre>
+            </div>
+            {reportCopiedNotice && (
+              <div style={{ fontSize: '11px', color: '#4ade80', marginBottom: '8px' }}>
+                {t('settings.devicePerformance.reportCopied')}
+              </div>
+            )}
+            {reportSentNotice && (
+              <div style={{ fontSize: '11px', color: '#4ade80', marginBottom: '8px' }}>
+                {t('settings.devicePerformance.reportSent')}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                data-testid="copy-diagnostic-report-btn"
+                onClick={handleCopyReport}
+                className="touch-target"
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1e2437',
+                  border: '1px solid #333d5c',
+                  color: '#f8fafc',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                {t('settings.devicePerformance.reportCopy')}
+              </button>
+              <button
+                type="button"
+                data-testid="send-diagnostic-report-btn"
+                onClick={handleSubmitReport}
+                className="touch-target"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: '#4f46e5',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                {t('settings.devicePerformance.reportSend')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

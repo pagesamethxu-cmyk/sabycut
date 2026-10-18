@@ -1,0 +1,20 @@
+{
+  "text_basic": {
+    "texts": [],
+    "inputs": []
+  },
+  "text_presets": [],
+  "text_tts": [],
+  "text_animation": [],
+  "text_motion_tracking": [],
+  "export_dialog": [
+    "View all",
+    "Click to upload",
+    "Or drag and drop file here",
+    "Ratio",
+    "00:00:00",
+    "Material resources",
+    "1/2",
+    "Next"
+  ]
+}

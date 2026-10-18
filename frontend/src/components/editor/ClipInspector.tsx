@@ -81,6 +81,18 @@ export interface ClipProperties {
   // Transition
   transitionType: string;
   transitionDuration: number;
+
+  // Text extras (CapCut parity)
+  curvedRadius?: number;
+  motionTracking?: boolean;
+  ttsVoice?: string;
+
+  // Smart Tools (Beauty & Portrait)
+  facialSmoothing?: number;
+  teethWhitening?: number;
+  faceSlimming?: number;
+  portraitRelightPreset?: string;
+  autoReframeRatio?: string;
 }
 
 interface ClipInspectorProps {
@@ -101,7 +113,7 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
   onApplyTransitionToAll,
 }) => {
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<'transform' | 'speed' | 'mask' | 'chroma' | 'color' | 'audio' | 'text' | 'transition'>(
+  const [activeTab, setActiveTab] = useState<'transform' | 'speed' | 'mask' | 'chroma' | 'color' | 'audio' | 'text' | 'transition' | 'smartTools'>(
     clipType === 'text' ? 'text' : clipType === 'sfx' || clipType === 'audio' ? 'audio' : 'transform'
   );
 
@@ -322,6 +334,23 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
               }}
             >
               {t('tabs.transition', 'Transition')}
+            </button>
+            <button
+              data-testid="inspector-tab-smartTools"
+              onClick={() => setActiveTab('smartTools')}
+              style={{
+                minHeight: '44px',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                backgroundColor: activeTab === 'smartTools' ? '#232738' : 'transparent',
+                color: activeTab === 'smartTools' ? '#ffffff' : '#94a3b8',
+                fontSize: '11px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer'
+              }}
+            >
+              Smart Tools
             </button>
           </>
         )}
@@ -873,6 +902,35 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
             >
               {t('audio.ducking', 'Audio Ducking')}
             </button>
+
+            {/* Voice Effects & Pitch Modulation */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: 600, marginBottom: '6px' }}>
+                Voice Effects (ប្ដូរសំឡេង)
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                {['none', 'chipmunk', 'deep', 'robot', 'echo', 'telephone'].map((eff) => (
+                  <button
+                    key={eff}
+                    type="button"
+                    onClick={() => onChange({ voiceChanger: eff })}
+                    className="touch-target"
+                    style={{
+                      padding: '8px 4px',
+                      borderRadius: '6px',
+                      backgroundColor: properties.voiceChanger === eff ? '#4f46e5' : '#1e2130',
+                      color: properties.voiceChanger === eff ? '#ffffff' : '#94a3b8',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      border: '1px solid #2e354e',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {eff.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
           </>
         )}
 
@@ -945,6 +1003,253 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
                 onChange={(e) => onChange({ fontSize: parseInt(e.target.value, 10) })}
                 style={{ width: '100%', accentColor: '#4f46e5' }}
               />
+            </div>
+
+            {/* Curved Text Slider */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 600 }}>
+                  {t('text.curvedRadius', 'Curved Text')}: {properties.curvedRadius || 0}°
+                </label>
+                {properties.curvedRadius ? (
+                  <button
+                    onClick={() => onChange({ curvedRadius: 0 })}
+                    style={{ fontSize: '11px', color: '#818cf8', background: 'none', cursor: 'pointer' }}
+                  >
+                    {t('common.cancel', 'Reset')}
+                  </button>
+                ) : null}
+              </div>
+              <input
+                type="range"
+                min="-180"
+                max="180"
+                step="5"
+                value={properties.curvedRadius || 0}
+                onChange={(e) => onChange({ curvedRadius: parseInt(e.target.value, 10) })}
+                style={{ width: '100%', accentColor: '#4f46e5' }}
+              />
+            </div>
+
+            {/* Motion Tracking Toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', backgroundColor: '#1e2130', borderRadius: '8px' }}>
+              <div>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff', display: 'block' }}>
+                  {t('text.motionTracking', 'Motion Tracking')}
+                </span>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  Pin text position to detected moving object
+                </span>
+              </div>
+              <button
+                onClick={() => onChange({ motionTracking: !properties.motionTracking })}
+                style={{
+                  minWidth: '44px',
+                  minHeight: '44px',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  backgroundColor: properties.motionTracking ? '#4f46e5' : '#282d3f',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {properties.motionTracking ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            {/* Text to Speech Voice */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: 600, marginBottom: '8px' }}>
+                {t('text.ttsVoice', 'Text to Speech Voice')}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '6px' }}>
+                {[
+                  { id: 'none', label: t('text.voiceNone', 'None (Silent)') },
+                  { id: 'female_km', label: t('text.voiceFemaleKm', 'Khmer Female (Sreypov)') },
+                  { id: 'male_km', label: t('text.voiceMaleKm', 'Khmer Male (Dara)') },
+                  { id: 'calm_km', label: t('text.voiceCalmKm', 'Khmer Calm') },
+                  { id: 'narrator_en', label: t('text.voiceNarratorEn', 'English Narrator') }
+                ].map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => onChange({ ttsVoice: v.id })}
+                    style={{
+                      minHeight: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0 12px',
+                      borderRadius: '6px',
+                      backgroundColor: (properties.ttsVoice || 'none') === v.id ? '#4f46e5' : '#1e2130',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span>{v.label}</span>
+                    {(properties.ttsVoice || 'none') === v.id && <Check size={16} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* SMART TOOLS TAB (Beauty, Retouch & Auto Reframe) */}
+        {activeTab === 'smartTools' && (
+          <>
+            <div style={{ padding: '8px 12px', backgroundColor: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#c7d2fe', lineHeight: 1.4, display: 'block' }}>
+                {t('smartTools.smartToolsDesc', 'Hardware-accelerated AI beauty, lighting and subject reframing.')}
+              </span>
+            </div>
+
+            {/* Facial Smoothing */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 600 }}>
+                  {t('smartTools.facialSmoothing', 'Facial Smoothing')}: {properties.facialSmoothing || 0}%
+                </label>
+                {(properties.facialSmoothing || 0) > 0 && (
+                  <button
+                    onClick={() => onChange({ facialSmoothing: 0 })}
+                    style={{ fontSize: '11px', color: '#818cf8', background: 'none', cursor: 'pointer' }}
+                  >
+                    {t('common.cancel', 'Reset')}
+                  </button>
+                )}
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={properties.facialSmoothing || 0}
+                onChange={(e) => onChange({ facialSmoothing: parseInt(e.target.value, 10) })}
+                style={{ width: '100%', accentColor: '#4f46e5' }}
+              />
+            </div>
+
+            {/* Teeth Whitening */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 600 }}>
+                  {t('smartTools.teethWhitening', 'Teeth Whitening')}: {properties.teethWhitening || 0}%
+                </label>
+                {(properties.teethWhitening || 0) > 0 && (
+                  <button
+                    onClick={() => onChange({ teethWhitening: 0 })}
+                    style={{ fontSize: '11px', color: '#818cf8', background: 'none', cursor: 'pointer' }}
+                  >
+                    {t('common.cancel', 'Reset')}
+                  </button>
+                )}
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={properties.teethWhitening || 0}
+                onChange={(e) => onChange({ teethWhitening: parseInt(e.target.value, 10) })}
+                style={{ width: '100%', accentColor: '#4f46e5' }}
+              />
+            </div>
+
+            {/* Face Slimming */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 600 }}>
+                  {t('smartTools.faceSlimming', 'Face Slimming')}: {properties.faceSlimming || 0}%
+                </label>
+                {(properties.faceSlimming || 0) > 0 && (
+                  <button
+                    onClick={() => onChange({ faceSlimming: 0 })}
+                    style={{ fontSize: '11px', color: '#818cf8', background: 'none', cursor: 'pointer' }}
+                  >
+                    {t('common.cancel', 'Reset')}
+                  </button>
+                )}
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={properties.faceSlimming || 0}
+                onChange={(e) => onChange({ faceSlimming: parseInt(e.target.value, 10) })}
+                style={{ width: '100%', accentColor: '#4f46e5' }}
+              />
+            </div>
+
+            {/* AI Portrait Relight Presets */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: 600, marginBottom: '8px' }}>
+                {t('smartTools.portraitRelight', 'AI Portrait Relight')}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                {[
+                  { id: 'none', label: t('smartTools.relightNone', 'None') },
+                  { id: 'studio', label: t('smartTools.relightStudio', 'Studio Soft') },
+                  { id: 'rembrandt', label: t('smartTools.relightRembrandt', 'Rembrandt') },
+                  { id: 'sunset', label: t('smartTools.relightSunset', 'Golden Sunset') },
+                  { id: 'cyberpunk', label: t('smartTools.relightCyberpunk', 'Cyberpunk Neon') }
+                ].map((rl) => (
+                  <button
+                    key={rl.id}
+                    onClick={() => onChange({ portraitRelightPreset: rl.id })}
+                    style={{
+                      minHeight: '44px',
+                      borderRadius: '6px',
+                      backgroundColor: (properties.portraitRelightPreset || 'none') === rl.id ? '#4f46e5' : '#1e2130',
+                      color: (properties.portraitRelightPreset || 'none') === rl.id ? '#ffffff' : '#94a3b8',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: 'none',
+                      padding: '4px 8px'
+                    }}
+                  >
+                    {rl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Auto Reframe */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: 600, marginBottom: '6px' }}>
+                {t('smartTools.autoReframe', 'Auto Reframe')}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                {[
+                  { id: 'original', label: t('smartTools.original', 'Original') },
+                  { id: '9:16', label: '9:16 TikTok' },
+                  { id: '16:9', label: '16:9 YouTube' },
+                  { id: '1:1', label: '1:1 Square' },
+                  { id: '4:5', label: '4:5 Feed' }
+                ].map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => onChange({ autoReframeRatio: r.id })}
+                    style={{
+                      minHeight: '44px',
+                      borderRadius: '6px',
+                      backgroundColor: (properties.autoReframeRatio || 'original') === r.id ? '#4f46e5' : '#1e2130',
+                      color: (properties.autoReframeRatio || 'original') === r.id ? '#ffffff' : '#94a3b8',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: 'none',
+                      padding: '4px 6px'
+                    }}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </>
         )}

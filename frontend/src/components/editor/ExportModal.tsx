@@ -9,7 +9,8 @@ import {
   Check, 
   FileVideo,
   Layers,
-  Volume2
+  Volume2,
+  Share2
 } from 'lucide-react';
 import { t } from '../../i18n';
 
@@ -43,6 +44,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [progress, setProgress] = useState(0);
   const [currentStage, setCurrentStage] = useState('');
   const [isComplete, setIsComplete] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -50,6 +52,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       setProgress(0);
       setIsComplete(false);
       setCurrentStage('');
+      setShareFeedback(null);
     }
   }, [isOpen]);
 
@@ -94,6 +97,24 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  };
+
+  const handleShare = async (platform: string) => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: projectTitle,
+          text: `Rendered with SABYCUT: ${projectTitle}`,
+          url: window.location.href
+        });
+        setShareFeedback(`Shared to ${platform}`);
+      } catch (err) {
+        setShareFeedback(`Ready to publish to ${platform}`);
+      }
+    } else {
+      setShareFeedback(`Ready to publish to ${platform}`);
+    }
+    setTimeout(() => setShareFeedback(null), 3500);
   };
 
   return (
@@ -331,6 +352,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
             {/* Action Button */}
             <button
+              data-testid="start-export-btn"
               onClick={handleStartExport}
               style={{
                 width: '100%',
@@ -419,15 +441,61 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
               Export Finished! (វីដេអូបានទាញយកដោយជោគជ័យ)
             </h3>
-            <p style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '20px' }}>
+            <p style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '16px' }}>
               Your video has been rendered at {resolution.toUpperCase()} {fps}fps with full Khmer subtitle shaping.
             </p>
+
+            {/* Social Share Section (AUD-108) */}
+            <div style={{ marginTop: '16px', marginBottom: '16px', textAlign: 'left' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', fontWeight: 600, marginBottom: '8px' }}>
+                {t('export.shareDirect', 'Direct Publish & Share')}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                {[
+                  { id: 'tiktok', name: t('export.shareTiktok', 'TikTok'), bg: '#000000', border: '#27272a' },
+                  { id: 'youtube', name: t('export.shareYoutube', 'YouTube Shorts'), bg: '#1c1917', border: '#dc2626' },
+                  { id: 'facebook', name: t('export.shareFacebook', 'Facebook'), bg: '#172554', border: '#2563eb' },
+                  { id: 'telegram', name: t('export.shareTelegram', 'Telegram'), bg: '#082f49', border: '#0284c7' }
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleShare(s.name)}
+                    data-testid={`export-share-${s.id}`}
+                    style={{
+                      minHeight: '44px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      backgroundColor: s.bg,
+                      border: `1px solid ${s.border}`,
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Share2 size={14} />
+                    <span>{s.name}</span>
+                  </button>
+                ))}
+              </div>
+              {shareFeedback && (
+                <div style={{ marginTop: '8px', padding: '6px 12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', borderRadius: '6px', fontSize: '11px', color: '#6ee7b7', textAlign: 'center' }}>
+                  {shareFeedback}
+                </div>
+              )}
+            </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={handleDownload}
+                data-testid="export-download-btn"
                 style={{
                   flex: 1,
+                  minHeight: '44px',
                   padding: '12px',
                   borderRadius: '8px',
                   backgroundColor: '#10b981',
@@ -437,7 +505,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  cursor: 'pointer'
                 }}
               >
                 <Download size={16} />
@@ -447,12 +516,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <button
                 onClick={onClose}
                 style={{
+                  minHeight: '44px',
                   padding: '12px 18px',
                   borderRadius: '8px',
                   backgroundColor: '#1e2130',
                   color: '#cbd5e1',
                   fontSize: '13px',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  cursor: 'pointer'
                 }}
               >
                 Done

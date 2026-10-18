@@ -18,6 +18,7 @@ import { SettingsPage, SettingsSection } from './components/settings/SettingsPag
 import { RecentProjects } from './components/home/RecentProjects';
 import { AiKeyRequiredModal } from './components/autocut/AiKeyRequiredModal';
 import { SafeAreaDebugOverlay } from './components/common/SafeAreaDebugOverlay';
+import { initLifecycleManager } from './services/lifecycleManager';
 
 export function App() {
   const [isI18nReady, setIsI18nReady] = useState(false);
@@ -55,6 +56,18 @@ export function App() {
         .then((userData) => setUser(userData))
         .catch(() => clearAuthToken());
     }
+
+    initLifecycleManager(async () => {
+      // Auto-save active project state on background
+      try {
+        const active = localStorage.getItem('sabycut_current_project');
+        if (active) {
+          localStorage.setItem('sabycut_autosave_backup', active);
+        }
+      } catch (err) {
+        console.warn('Autosave snapshot failed:', err);
+      }
+    });
 
     const handleDebugChanged = (e: Event) => {
       const custom = e as CustomEvent<boolean>;

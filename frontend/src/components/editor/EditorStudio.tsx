@@ -26,7 +26,11 @@ import {
   Wand2,
   Eye,
   EyeOff,
-  Layers
+  Layers,
+  MousePointer,
+  Hand,
+  PictureInPicture,
+  FolderPlus
 } from 'lucide-react';
 import { t } from '../../i18n';
 import { sfxSynth } from '../../services/soundEffects';
@@ -34,6 +38,7 @@ import { AutoCutModal, AutoCutResult } from '../autocut/AutoCutModal';
 import { SettingsModal } from '../settings/SettingsModal';
 import { ClipInspector, ClipProperties } from './ClipInspector';
 import { ExportModal } from './ExportModal';
+import { EditorPanelsDock, TopLevelPanelId } from './EditorPanelsDock';
 import { useIsMobile, useViewport } from '../../hooks/useIsMobile';
 import { PartialEditModal } from './PartialEditModal';
 import { VersionHistoryModal, TimelineSnapshot } from './VersionHistoryModal';
@@ -105,6 +110,13 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>('clip-v1');
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+
+  // CapCut 12-Panel Dock and Preview Tools States
+  const [activePanel, setActivePanel] = useState<TopLevelPanelId | null>(isMobile ? null : 'media');
+  const [isPanelsDockOpen, setIsPanelsDockOpen] = useState(true);
+  const [previewTool, setPreviewTool] = useState<'pointer' | 'hand'>('pointer');
+  const [aiCredits, setAiCredits] = useState<number>(50);
+  const [brandWatermark, setBrandWatermark] = useState<string | null>(null);
 
   const [zoom, setZoom] = useState(35); // px per second
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
@@ -632,6 +644,186 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     saveSnapshot('Add Music Track', { music: updatedMusic, props: updatedProps });
   };
 
+  // Picture in Picture Toggle (AUD-046)
+  const handleTogglePiP = async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (videoRef.current && document.pictureInPictureEnabled) {
+        await videoRef.current.requestPictureInPicture();
+      }
+    } catch (e) {
+      console.warn('Picture in Picture failed:', e);
+    }
+  };
+
+  // EditorPanelsDock Handlers
+  const handleAddMediaFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const newId = `clip-v-${Date.now()}`;
+    setVideoSrc(url);
+    const newClip: Clip = {
+      id: newId,
+      type: 'video',
+      title: file.name.replace(/\.[^/.]+$/, ''),
+      start: currentTime,
+      end: currentTime + 5.0
+    };
+    const updated = [...videoClips, newClip];
+    const updatedProps = {
+      ...clipPropsMap,
+      [newId]: getDefaultProperties('video', newClip.title)
+    };
+    setVideoClips(updated);
+    setClipPropsMap(updatedProps);
+    setSelectedClipId(newId);
+    saveSnapshot(`Add Media: ${newClip.title}`, { video: updated, props: updatedProps });
+  };
+
+  const handleAddTextClipFromDock = (text: string, stylePreset?: string) => {
+    const newId = `clip-t-${Date.now()}`;
+    const newClip: Clip = {
+      id: newId,
+      type: 'text',
+      title: 'Khmer Text',
+      start: currentTime,
+      end: currentTime + 3.0,
+      text: text
+    };
+    const props = getDefaultProperties('text', 'Khmer Text', text);
+    if (stylePreset === 'neon') {
+      props.color = '#38bdf8';
+      props.shadowColor = '#0284c7';
+      props.shadowBlur = 15;
+    } else if (stylePreset === 'gold') {
+      props.color = '#fbbf24';
+      props.strokeColor = '#78350f';
+      props.strokeWidth = 2;
+    }
+    const updatedText = [...textClips, newClip];
+    const updatedProps = { ...clipPropsMap, [newId]: props };
+    setTextClips(updatedText);
+    setClipPropsMap(updatedProps);
+    setSelectedClipId(newId);
+    saveSnapshot('Add Text from Dock', { text: updatedText, props: updatedProps });
+  };
+
+  const handleAddSfxClipFromDock = (type: string, title: string) => {
+    const newId = `clip-s-${Date.now()}`;
+    const newClip: Clip = {
+      id: newId,
+      type: 'sfx',
+      title: title,
+      start: currentTime,
+      end: currentTime + 1.0,
+      sfxType: type
+    };
+    const updated = [...sfxClips, newClip];
+    const updatedProps = {
+      ...clipPropsMap,
+      [newId]: getDefaultProperties('sfx', title)
+    };
+    setSfxClips(updated);
+    setClipPropsMap(updatedProps);
+    setSelectedClipId(newId);
+    sfxSynth.playByType(type as any);
+    saveSnapshot(`Add SFX: ${title}`, { sfx: updated, props: updatedProps });
+  };
+
+  const handleAddMusicClipFromDock = (title: string) => {
+    const newId = `clip-m-${Date.now()}`;
+    const newClip: Clip = {
+      id: newId,
+      type: 'audio',
+      title: title,
+      start: 0,
+      end: totalDuration
+    };
+    const updated = [newClip];
+    const updatedProps = {
+      ...clipPropsMap,
+      [newId]: getDefaultProperties('audio', title)
+    };
+    setMusicClips(updated);
+    setClipPropsMap(updatedProps);
+    saveSnapshot(`Set Music: ${title}`, { music: updated, props: updatedProps });
+  };
+
+  const handleApplyFilterFromDock = (filterName: string) => {
+    if (!selectedClipId) return;
+    setClipPropsMap((prev) => ({
+      ...prev,
+      [selectedClipId]: {
+        ...(prev[selectedClipId] || getDefaultProperties('video')),
+        filterPreset: filterName
+      }
+    }));
+  };
+
+  const handleApplyTransitionFromDock = (transitionName: string) => {
+    if (!selectedClipId) return;
+    setClipPropsMap((prev) => ({
+      ...prev,
+      [selectedClipId]: {
+        ...(prev[selectedClipId] || getDefaultProperties('video')),
+        transitionType: transitionName
+      }
+    }));
+  };
+
+  const handleApplyEffectFromDock = (effectName: string) => {
+    if (!selectedClipId) return;
+    setClipPropsMap((prev) => ({
+      ...prev,
+      [selectedClipId]: {
+        ...(prev[selectedClipId] || getDefaultProperties('video')),
+        filterPreset: effectName
+      }
+    }));
+  };
+
+  const handleImportSubtitleFromDock = (subtitles: Array<{ start: number; end: number; text: string }>) => {
+    const imported: Clip[] = subtitles.map((s, idx) => ({
+      id: `clip-srt-${Date.now()}-${idx}`,
+      type: 'text',
+      title: `Sub ${idx + 1}`,
+      start: s.start,
+      end: s.end,
+      text: s.text
+    }));
+    const updatedText = [...textClips, ...imported];
+    const updatedProps = { ...clipPropsMap };
+    imported.forEach((c) => {
+      updatedProps[c.id] = getDefaultProperties('text', c.title, c.text);
+    });
+    setTextClips(updatedText);
+    setClipPropsMap(updatedProps);
+    saveSnapshot('Import Subtitles', { text: updatedText, props: updatedProps });
+  };
+
+  const handleLoadTemplateFromDock = (templateId: string) => {
+    const tId = Date.now();
+    const newClips: Clip[] = [
+      { id: `tmpl-v1-${tId}`, type: 'video', title: 'Template Intro', start: 0, end: 3.5 },
+      { id: `tmpl-v2-${tId}`, type: 'video', title: 'Template Body', start: 3.5, end: 8.5 },
+      { id: `tmpl-v3-${tId}`, type: 'video', title: 'Template Outro', start: 8.5, end: 12.0 }
+    ];
+    const newTexts: Clip[] = [
+      { id: `tmpl-t1-${tId}`, type: 'text', title: 'Template Title', start: 0.5, end: 4.0, text: 'ចំណងជើងទម្រង់គំរូ' }
+    ];
+    setVideoClips(newClips);
+    setTextClips(newTexts);
+    const updatedProps = { ...clipPropsMap };
+    newClips.forEach((c) => {
+      updatedProps[c.id] = getDefaultProperties('video', c.title);
+    });
+    newTexts.forEach((c) => {
+      updatedProps[c.id] = getDefaultProperties('text', c.title, c.text);
+    });
+    setClipPropsMap(updatedProps);
+    saveSnapshot(`Load Template: ${templateId}`, { video: newClips, text: newTexts, props: updatedProps });
+  };
+
   // Revert to initial AI version
   const handleRevertToAi = () => {
     if (!aiVersionSnapshot) return;
@@ -1083,6 +1275,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               </button>
 
               <button
+                data-testid="export-modal-trigger-btn"
                 onClick={() => setIsExportOpen(true)}
                 style={{
                   display: 'flex',
@@ -1336,7 +1529,49 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 <SettingsIcon size={14} />
               </button>
 
+              {/* CapCut AI Generation Credit Counter (AUD-103) */}
+              <div
+                data-testid="ai-credit-counter"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  borderRadius: '16px',
+                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                  border: '1px solid rgba(99, 102, 241, 0.35)',
+                  color: '#a5b4fc',
+                  fontSize: '11px',
+                  fontWeight: 700
+                }}
+              >
+                <Sparkles size={13} color="#818cf8" />
+                <span>{aiCredits} {t('preview.credits', 'Credits')}</span>
+              </div>
+
               <button
+                onClick={() => setIsPanelsDockOpen(!isPanelsDockOpen)}
+                data-testid="toggle-panels-dock-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: isPanelsDockOpen ? 'rgba(99, 102, 241, 0.2)' : '#1a1d2b',
+                  border: isPanelsDockOpen ? '1px solid #818cf8' : '1px solid #292e44',
+                  color: isPanelsDockOpen ? '#818cf8' : '#cbd5e1',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+                title="Toggle Panels Dock"
+              >
+                <FolderPlus size={14} />
+                <span>Panels</span>
+              </button>
+
+              <button
+                data-testid="export-modal-trigger-btn"
                 onClick={() => setIsExportOpen(true)}
                 style={{
                   display: 'flex',
@@ -1464,6 +1699,32 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
         overflow: 'hidden',
         minHeight: 0
       }}>
+        {/* CapCut-style 12-Panel Dock */}
+        <EditorPanelsDock
+          isOpen={isPanelsDockOpen}
+          activePanel={activePanel}
+          onSelectPanel={setActivePanel}
+          onAddMediaFile={handleAddMediaFile}
+          onAddTextClip={handleAddTextClipFromDock}
+          onAddSfxClip={handleAddSfxClipFromDock}
+          onAddMusicClip={handleAddMusicClipFromDock}
+          onApplyEffect={handleApplyEffectFromDock}
+          onApplyFilter={handleApplyFilterFromDock}
+          onApplyTransition={handleApplyTransitionFromDock}
+          onLoadTemplate={handleLoadTemplateFromDock}
+          onImportSubtitle={handleImportSubtitleFromDock}
+          onTranscriptCut={() => handleSplit()}
+          onWatermarkUpdate={setBrandWatermark}
+          transcriptWords={[
+            { word: 'ស្វាគមន៍', start: 0.5, end: 1.2 },
+            { word: 'មកកាន់', start: 1.2, end: 2.0 },
+            { word: 'SABYCUT', start: 2.0, end: 3.5 },
+            { word: 'កាត់ត', start: 5.0, end: 6.2 },
+            { word: 'វីដេអូ', start: 6.2, end: 7.5 },
+            { word: 'AI', start: 7.5, end: 8.5 }
+          ]}
+        />
+
         {/* Center Viewport Preview */}
         <div style={{
           flex: 1,
@@ -1542,6 +1803,124 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               </div>
             )}
 
+            {/* In-Canvas Floating Context Action Bar (AUD-042) */}
+            {selectedClip && (
+              <div
+                data-testid="canvas-floating-context-bar"
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 25,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 8px',
+                  backgroundColor: 'rgba(18, 20, 29, 0.92)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '20px',
+                  boxShadow: '0 8px 16px rgba(0,0,0,0.5)'
+                }}
+              >
+                <button
+                  onClick={handleSplit}
+                  data-testid="floating-action-split"
+                  style={{
+                    minWidth: '44px',
+                    minHeight: '32px',
+                    padding: '4px 8px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#cbd5e1',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                  title="Split"
+                >
+                  <Scissors size={13} />
+                  <span>{t('preview.contextSplit', 'Split')}</span>
+                </button>
+
+                <div style={{ width: '1px', height: '14px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+
+                <button
+                  onClick={handleDuplicate}
+                  data-testid="floating-action-duplicate"
+                  style={{
+                    minWidth: '44px',
+                    minHeight: '32px',
+                    padding: '4px 8px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#cbd5e1',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                  title="Duplicate"
+                >
+                  <Copy size={13} />
+                  <span>{t('preview.contextDuplicate', 'Duplicate')}</span>
+                </button>
+
+                <div style={{ width: '1px', height: '14px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+
+                <button
+                  onClick={handleDelete}
+                  data-testid="floating-action-delete"
+                  style={{
+                    minWidth: '44px',
+                    minHeight: '32px',
+                    padding: '4px 8px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#f87171',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                  title="Delete"
+                >
+                  <Trash2 size={13} />
+                  <span>{t('preview.contextDelete', 'Delete')}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Brand Kit Watermark (AUD-036) */}
+            {brandWatermark && (
+              <img
+                src={brandWatermark}
+                alt="Brand Watermark"
+                data-testid="brand-watermark-overlay"
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  maxWidth: '44px',
+                  maxHeight: '44px',
+                  opacity: 0.85,
+                  zIndex: 14,
+                  pointerEvents: 'none'
+                }}
+              />
+            )}
+
             {/* Real Video Player with live CSS Transform and Color Grading */}
             {videoSrc ? (
               <video
@@ -1596,7 +1975,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               <span style={{ fontSize: '12px', color: '#64748b' }}>No clip at current position</span>
             )}
 
-            {/* Active Subtitle Rendering with Selected Khmer font & styling */}
+            {/* Active Subtitle Rendering with Selected Khmer font & styling (AUD-058 Curved Text) */}
             {activeTextClip && (
               <div style={{
                 position: 'absolute',
@@ -1606,171 +1985,271 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 zIndex: 10,
                 pointerEvents: 'none'
               }}>
-                <span style={{
-                  display: 'inline-block',
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  backgroundColor: activeTextProps.backgroundColor || 'rgba(0, 0, 0, 0.75)',
-                  color: activeTextProps.color || '#ffffff',
-                  fontSize: `${activeTextProps.fontSize || 20}px`,
-                  fontWeight: 600,
-                  fontFamily: `'${activeTextProps.fontFamily || 'Noto Sans Khmer'}', sans-serif`,
-                  WebkitTextStroke: activeTextProps.strokeWidth > 0 ? `${activeTextProps.strokeWidth}px ${activeTextProps.strokeColor}` : undefined,
-                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  maxWidth: '92%',
-                  lineHeight: 1.4,
-                  wordBreak: 'break-word',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {activeTextProps.text || activeTextClip.text}
-                </span>
+                {activeTextProps.curvedRadius && activeTextProps.curvedRadius !== 0 ? (
+                  <svg
+                    width="260"
+                    height="90"
+                    viewBox="0 0 260 90"
+                    data-testid="curved-text-svg"
+                    style={{ overflow: 'visible', margin: '0 auto', display: 'block' }}
+                  >
+                    <path
+                      id="text-curve-path"
+                      d={activeTextProps.curvedRadius > 0
+                        ? `M 10,75 Q 130,${75 - activeTextProps.curvedRadius * 0.35} 250,75`
+                        : `M 10,25 Q 130,${25 - activeTextProps.curvedRadius * 0.35} 250,25`}
+                      fill="transparent"
+                    />
+                    <text
+                      fill={activeTextProps.color || '#ffffff'}
+                      fontSize={`${activeTextProps.fontSize || 20}px`}
+                      fontFamily={`'${activeTextProps.fontFamily || 'Noto Sans Khmer'}', sans-serif`}
+                      textAnchor="middle"
+                      stroke={activeTextProps.strokeWidth > 0 ? activeTextProps.strokeColor : undefined}
+                      strokeWidth={activeTextProps.strokeWidth > 0 ? activeTextProps.strokeWidth : undefined}
+                    >
+                      <textPath href="#text-curve-path" startOffset="50%">
+                        {activeTextProps.text || activeTextClip.text}
+                      </textPath>
+                    </text>
+                  </svg>
+                ) : (
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    backgroundColor: activeTextProps.backgroundColor || 'rgba(0, 0, 0, 0.75)',
+                    color: activeTextProps.color || '#ffffff',
+                    fontSize: `${activeTextProps.fontSize || 20}px`,
+                    fontWeight: 600,
+                    fontFamily: `'${activeTextProps.fontFamily || 'Noto Sans Khmer'}', sans-serif`,
+                    WebkitTextStroke: activeTextProps.strokeWidth > 0 ? `${activeTextProps.strokeWidth}px ${activeTextProps.strokeColor}` : undefined,
+                    textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    maxWidth: '92%',
+                    lineHeight: 1.4,
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {activeTextProps.text || activeTextClip.text}
+                  </span>
+                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* Mobile Scrubber Controls Bar */}
-        {isMobile && (
-          <div style={{
-            height: '48px',
-            backgroundColor: '#0d0f16',
-            borderTop: '1px solid #1f2334',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingLeft: 'max(var(--sal, 0px), 16px)',
-            paddingRight: 'max(var(--sar, 0px), 16px)',
-            flexShrink: 0
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <button
-                onClick={() => {
-                  setCurrentTime(0);
-                  triggeredSFXRef.current.clear();
-                }}
-                style={{
-                  minWidth: '44px',
-                  minHeight: '44px',
-                  padding: '6px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1a1d2b',
-                  color: '#cbd5e1',
-                  border: '1px solid #282d3f',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="Reset Playhead"
-              >
-                <RotateCcw size={14} />
-              </button>
-
-              <button
-                onClick={() => setCurrentTime((p) => Math.max(0, p - 1/30))}
-                style={{
-                  minWidth: '44px',
-                  minHeight: '44px',
-                  padding: '6px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1a1d2b',
-                  color: '#cbd5e1',
-                  border: '1px solid #282d3f',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title={t('editor.frameStepBack', 'Step Backward')}
-              >
-                <ChevronLeft size={16} />
-              </button>
-
-              <button
-                onClick={() => setCurrentTime((p) => Math.min(totalDuration, p + 1/30))}
-                style={{
-                  minWidth: '44px',
-                  minHeight: '44px',
-                  padding: '6px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1a1d2b',
-                  color: '#cbd5e1',
-                  border: '1px solid #282d3f',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title={t('editor.frameStepFwd', 'Step Forward')}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-
+        {/* Universal Scrubber & Preview Controls Bar (AUD-040, AUD-043, AUD-046) */}
+        <div style={{
+          height: '48px',
+          backgroundColor: '#0d0f16',
+          borderTop: '1px solid #1f2334',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingLeft: 'max(var(--sal, 0px), 16px)',
+          paddingRight: 'max(var(--sar, 0px), 16px)',
+          flexShrink: 0,
+          gap: '8px',
+          overflowX: 'auto'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={() => {
+                setCurrentTime(0);
+                triggeredSFXRef.current.clear();
+              }}
               style={{
+                minWidth: '44px',
                 minHeight: '44px',
-                minWidth: '88px',
+                padding: '6px',
+                borderRadius: '8px',
+                backgroundColor: '#1a1d2b',
+                color: '#cbd5e1',
+                border: '1px solid #282d3f',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px',
-                padding: '6px 16px',
-                borderRadius: '22px',
-                backgroundColor: isPlaying ? '#eab308' : '#4f46e5',
-                color: '#ffffff',
-                fontSize: '13px',
-                fontWeight: 700
+                cursor: 'pointer'
               }}
+              title="Reset Playhead"
             >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-              <span>{isPlaying ? t('editor.pause') : t('editor.play')}</span>
+              <RotateCcw size={14} />
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              onClick={() => setCurrentTime((p) => Math.max(0, p - 1/30))}
+              style={{
+                minWidth: '44px',
+                minHeight: '44px',
+                padding: '6px',
+                borderRadius: '8px',
+                backgroundColor: '#1a1d2b',
+                color: '#cbd5e1',
+                border: '1px solid #282d3f',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title={t('editor.frameStepBack', 'Step Backward')}
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <button
+              onClick={() => setCurrentTime((p) => Math.min(totalDuration, p + 1/30))}
+              style={{
+                minWidth: '44px',
+                minHeight: '44px',
+                padding: '6px',
+                borderRadius: '8px',
+                backgroundColor: '#1a1d2b',
+                color: '#cbd5e1',
+                border: '1px solid #282d3f',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title={t('editor.frameStepFwd', 'Step Forward')}
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            {/* Pointer vs Hand Pan Tool (AUD-040) */}
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#151722', borderRadius: '8px', border: '1px solid #232738', padding: '2px', marginLeft: '4px' }}>
               <button
-                onClick={() => setIsLooping(!isLooping)}
+                onClick={() => setPreviewTool('pointer')}
+                data-testid="preview-tool-pointer"
                 style={{
-                  minWidth: '44px',
-                  minHeight: '44px',
-                  padding: '6px',
-                  borderRadius: '8px',
-                  backgroundColor: isLooping ? 'rgba(16, 185, 129, 0.2)' : '#1a1d2b',
-                  color: isLooping ? '#10b981' : '#cbd5e1',
-                  border: isLooping ? '1px solid #10b981' : '1px solid #282d3f',
+                  minWidth: '36px',
+                  minHeight: '36px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: previewTool === 'pointer' ? '#4f46e5' : 'transparent',
+                  color: previewTool === 'pointer' ? '#ffffff' : '#94a3b8',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  cursor: 'pointer'
                 }}
-                title={t('editor.loop', 'Loop Playback')}
+                title={t('preview.pointerTool', 'Pointer Tool')}
               >
-                <RefreshCw size={14} />
+                <MousePointer size={15} />
               </button>
-
               <button
-                onClick={() => setShowRatioGuides(!showRatioGuides)}
+                onClick={() => setPreviewTool('hand')}
+                data-testid="preview-tool-hand"
                 style={{
-                  minWidth: '44px',
-                  minHeight: '44px',
-                  padding: '6px',
-                  borderRadius: '8px',
-                  backgroundColor: showRatioGuides ? 'rgba(99, 102, 241, 0.2)' : '#1a1d2b',
-                  color: showRatioGuides ? '#818cf8' : '#cbd5e1',
-                  border: showRatioGuides ? '1px solid #818cf8' : '1px solid #282d3f',
+                  minWidth: '36px',
+                  minHeight: '36px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: previewTool === 'hand' ? '#4f46e5' : 'transparent',
+                  color: previewTool === 'hand' ? '#ffffff' : '#94a3b8',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  cursor: 'pointer'
                 }}
-                title="Ratio Guides"
+                title={t('preview.handTool', 'Hand Tool (Pan)')}
               >
-                <Eye size={14} />
+                <Hand size={15} />
               </button>
-
-              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#818cf8', fontWeight: 600 }}>
-                {formatTime(currentTime)}
-              </span>
             </div>
           </div>
-        )}
+
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            style={{
+              minHeight: '44px',
+              minWidth: '88px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '6px 16px',
+              borderRadius: '22px',
+              backgroundColor: isPlaying ? '#eab308' : '#4f46e5',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+            <span>{isPlaying ? t('editor.pause') : t('editor.play')}</span>
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              onClick={() => setIsLooping(!isLooping)}
+              style={{
+                minWidth: '44px',
+                minHeight: '44px',
+                padding: '6px',
+                borderRadius: '8px',
+                backgroundColor: isLooping ? 'rgba(16, 185, 129, 0.2)' : '#1a1d2b',
+                color: isLooping ? '#10b981' : '#cbd5e1',
+                border: isLooping ? '1px solid #10b981' : '1px solid #282d3f',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title={t('editor.loop', 'Loop Playback')}
+            >
+              <RefreshCw size={14} />
+            </button>
+
+            <button
+              onClick={() => setShowRatioGuides(!showRatioGuides)}
+              style={{
+                minWidth: '44px',
+                minHeight: '44px',
+                padding: '6px',
+                borderRadius: '8px',
+                backgroundColor: showRatioGuides ? 'rgba(99, 102, 241, 0.2)' : '#1a1d2b',
+                color: showRatioGuides ? '#818cf8' : '#cbd5e1',
+                border: showRatioGuides ? '1px solid #818cf8' : '1px solid #282d3f',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title="Ratio Guides"
+            >
+              <Eye size={14} />
+            </button>
+
+            {/* Picture in Picture Window Toggle (AUD-046) */}
+            <button
+              onClick={handleTogglePiP}
+              data-testid="preview-pip-btn"
+              style={{
+                minWidth: '44px',
+                minHeight: '44px',
+                padding: '6px',
+                borderRadius: '8px',
+                backgroundColor: '#1a1d2b',
+                color: '#cbd5e1',
+                border: '1px solid #282d3f',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title={t('preview.pipToggle', 'Picture in Picture')}
+            >
+              <PictureInPicture size={14} />
+            </button>
+
+            <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#818cf8', fontWeight: 600 }}>
+              {formatTime(currentTime)}
+            </span>
+          </div>
+        </div>
 
         {/* Clip Inspector */}
         {isInspectorOpen && selectedClip && (
