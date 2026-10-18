@@ -12,8 +12,14 @@ if parent_dir not in sys.path:
 
 try:
     from app.config import Config
+    from app.services.analyzer import VideoAnalyzer
+    from app.services.planner import AutoCutPlanner
+    from app.services.renderer import FFmpegRenderer
 except ImportError:
     from config import Config
+    from services.analyzer import VideoAnalyzer
+    from services.planner import AutoCutPlanner
+    from services.renderer import FFmpegRenderer
 
 app = Flask(__name__)
 CORS(app)
@@ -33,45 +39,111 @@ def health():
     return jsonify({
         "status": "UP",
         "service": "sabycut-ai-service",
-        "version": "0.1.0"
+        "version": "0.2.0"
     }), 200
 
 @app.route("/analyze", methods=["POST"])
 @require_internal_token
 def analyze():
-    # Placeholder for Phase 4 video scene and audio analysis
+    body = request.get_json(silent=True) or {}
+    video_path = body.get("videoPath")
+    duration = float(body.get("duration", 24.0))
+    prompt = body.get("prompt", "")
+
+    analysis = VideoAnalyzer.analyze_full(video_path=video_path, duration=duration, prompt=prompt)
     return jsonify({
-        "message": "Analysis endpoint ready for Phase 4 integration",
-        "scenes": [],
-        "silences": []
+        "message": "Analysis completed",
+        "analysis": analysis
     }), 200
 
 @app.route("/transcribe", methods=["POST"])
 @require_internal_token
 def transcribe():
-    # Placeholder for Phase 3 Khmer Whisper/Gemini transcription
+    body = request.get_json(silent=True) or {}
+    duration = float(body.get("duration", 24.0))
+    prompt = body.get("prompt", "")
+
+    segments = VideoAnalyzer.transcribe_speech(duration=duration, user_prompt=prompt)
     return jsonify({
-        "message": "Transcription endpoint ready for Phase 3 integration",
-        "segments": []
+        "message": "Transcription completed",
+        "segments": segments
     }), 200
 
 @app.route("/plan", methods=["POST"])
 @require_internal_token
 def plan():
-    # Placeholder for Phase 5 AI Auto Cut EDL Planner
+    body = request.get_json(silent=True) or {}
+    analysis = body.get("analysis") or {}
+    form_preset = body.get("formPreset", "tiktok")
+    user_prompt = body.get("prompt", "")
+    provider = body.get("provider", "GEMINI")
+    api_key = body.get("apiKey") # Decrypted on core server; never logged
+
+    edl = AutoCutPlanner.plan_edl(
+        analysis=analysis,
+        form_preset=form_preset,
+        user_prompt=user_prompt,
+        provider=provider,
+        api_key=api_key
+    )
     return jsonify({
-        "message": "Planning endpoint ready for Phase 5 integration",
-        "edl": {}
+        "message": "Planning completed",
+        "edl": edl.model_dump()
+    }), 200
+
+@app.route("/autocut/process", methods=["POST"])
+@require_internal_token
+def autocut_process():
+    """
+    Combined end-to-end Auto Cut execution endpoint:
+    Runs video analysis (scenes, silence, beats, keyframes) + EDL planning.
+    """
+    body = request.get_json(silent=True) or {}
+    duration = float(body.get("videoDuration", 24.0))
+    form_preset = body.get("formPreset", "tiktok")
+    user_prompt = body.get("prompt", "")
+    provider = body.get("provider", "GEMINI")
+    api_key = body.get("apiKey")
+
+    analysis = VideoAnalyzer.analyze_full(duration=duration, prompt=user_prompt)
+    edl = AutoCutPlanner.plan_edl(
+        analysis=analysis,
+        form_preset=form_preset,
+        user_prompt=user_prompt,
+        provider=provider,
+        api_key=api_key
+    )
+
+    return jsonify({
+        "message": "Auto Cut processing successful",
+        "analysis": analysis,
+        "edl": edl.model_dump()
     }), 200
 
 @app.route("/render", methods=["POST"])
 @require_internal_token
 def render():
-    # Placeholder for Phase 2 server-side FFmpeg rendering
-    return jsonify({
-        "message": "Render endpoint ready for Phase 2 integration",
-        "outputAssetId": None
-    }), 200
+    body = request.get_json(silent=True) or {}
+    input_path = body.get("inputPath")
+    output_path = body.get("outputPath")
+    resolution = body.get("resolution", "1080p")
+    fps = int(body.get("fps", 60))
+    aspect_ratio = body.get("aspectRatio", "9:16")
+
+    if not input_path or not output_path:
+        return jsonify({"error": "Missing inputPath or outputPath"}), 400
+
+    result = FFmpegRenderer.render(
+        input_video_path=input_path,
+        output_video_path=output_path,
+        resolution=resolution,
+        fps=fps,
+        aspect_ratio=aspect_ratio
+    )
+    if result.get("success"):
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=Config.PORT, debug=True)

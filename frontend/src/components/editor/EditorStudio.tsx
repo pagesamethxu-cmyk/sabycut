@@ -19,7 +19,14 @@ import {
   Sliders,
   ChevronLeft,
   ChevronRight,
-  Maximize2
+  Maximize2,
+  History,
+  RefreshCw,
+  Music,
+  Wand2,
+  Eye,
+  EyeOff,
+  Layers
 } from 'lucide-react';
 import { t } from '../../i18n';
 import { sfxSynth } from '../../services/soundEffects';
@@ -27,7 +34,10 @@ import { AutoCutModal, AutoCutResult } from '../autocut/AutoCutModal';
 import { SettingsModal } from '../settings/SettingsModal';
 import { ClipInspector, ClipProperties } from './ClipInspector';
 import { ExportModal } from './ExportModal';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import { useIsMobile, useViewport } from '../../hooks/useIsMobile';
+import { PartialEditModal } from './PartialEditModal';
+import { VersionHistoryModal, TimelineSnapshot } from './VersionHistoryModal';
+import { RegenerateModal } from './RegenerateModal';
 
 
 export interface Clip {
@@ -85,9 +95,14 @@ const getPresetFilterCss = (preset: string) => {
 
 export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoCutResult }) => {
   const isMobile = useIsMobile();
-  const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9' | '1:1'>('9:16');
+  const viewport = useViewport();
+  const isLandscape = viewport.isLandscape;
+  const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9' | '1:1' | '4:5' | '3:4'>('9:16');
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
+  const [showRatioGuides, setShowRatioGuides] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>('clip-v1');
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
 
@@ -130,8 +145,27 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     'clip-t2': getDefaultProperties('text', 'Feature Text', 'កាត់តវីដេអូស្វ័យប្រវត្តិតាម AI'),
     'clip-s1': getDefaultProperties('sfx', 'Whoosh'),
     'clip-s2': getDefaultProperties('sfx', 'Ding'),
-    'clip-s3': getDefaultProperties('sfx', 'Bass Drop')
+    'clip-s3': getDefaultProperties('sfx', 'Bass Drop'),
+    'clip-m1': getDefaultProperties('audio', 'Background Rhythm')
   });
+
+  const [musicClips, setMusicClips] = useState<Clip[]>([
+    { id: 'clip-m1', type: 'audio', title: 'Background Rhythm', start: 0, end: 18.0 }
+  ]);
+
+  // AI Cut Banner and Version States
+  const [showAiBanner, setShowAiBanner] = useState<boolean>(Boolean(initialAutoCutResult));
+  const [isComparingOriginal, setIsComparingOriginal] = useState<boolean>(false);
+  const [originalVideoDuration, setOriginalVideoDuration] = useState<number>(18.0);
+  const [aiVersionSnapshot, setAiVersionSnapshot] = useState<TimelineSnapshot | null>(null);
+  const [historySnapshots, setHistorySnapshots] = useState<TimelineSnapshot[]>([]);
+  const [currentSnapshotId, setCurrentSnapshotId] = useState<string | null>(null);
+
+  // Modals for Partial Edit, Version History, Regenerate, Quick Fix
+  const [isPartialEditOpen, setIsPartialEditOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [isRegenerateOpen, setIsRegenerateOpen] = useState(false);
+  const [isQuickFixMenuOpen, setIsQuickFixMenuOpen] = useState(false);
 
   // Timeline resize drag state
   const [resizing, setResizing] = useState<{
@@ -142,12 +176,15 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     initialEnd: number;
   } | null>(null);
 
-  const totalDuration = Math.max(
-    ...videoClips.map((c) => c.end),
-    ...textClips.map((c) => c.end),
-    ...sfxClips.map((c) => c.end),
-    18
-  );
+  const totalDuration = isComparingOriginal
+    ? originalVideoDuration
+    : Math.max(
+        ...videoClips.map((c) => c.end),
+        ...textClips.map((c) => c.end),
+        ...sfxClips.map((c) => c.end),
+        ...musicClips.map((c) => c.end),
+        18
+      );
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const triggeredSFXRef = useRef<Set<string>>(new Set());
@@ -164,7 +201,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
   const activeTextClip = textClips.find((c) => currentTime >= c.start && currentTime <= c.end) || null;
 
   // Selected clip object
-  const allClips = [...videoClips, ...textClips, ...sfxClips];
+  const allClips = [...videoClips, ...textClips, ...sfxClips, ...musicClips];
   const selectedClip = allClips.find((c) => c.id === selectedClipId) || null;
 
   // Selected or active video clip properties for preview rendering
@@ -214,8 +251,11 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
         setCurrentTime((prev) => {
           const next = prev + (delta * currentSpeed);
           if (next >= totalDuration) {
-            setIsPlaying(false);
             triggeredSFXRef.current.clear();
+            if (isLooping) {
+              return 0;
+            }
+            setIsPlaying(false);
             return 0;
           }
 
@@ -241,7 +281,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     }
 
     return () => cancelAnimationFrame(animId);
-  }, [isPlaying, totalDuration, sfxClips, activeVideoProps]);
+  }, [isPlaying, totalDuration, sfxClips, activeVideoProps, isLooping]);
 
   // Timeline Clip Drag Resizing Listener
   useEffect(() => {
@@ -259,6 +299,9 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     };
 
     const handleMouseUp = () => {
+      if (resizing) {
+        saveSnapshot('Trim Clip Bounds');
+      }
       setResizing(null);
     };
 
@@ -270,10 +313,46 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     };
   }, [resizing, zoom]);
 
+  const saveSnapshot = (
+    label: string,
+    override?: {
+      video?: Clip[];
+      text?: Clip[];
+      sfx?: Clip[];
+      music?: Clip[];
+      props?: Record<string, ClipProperties>;
+      aspect?: '9:16' | '16:9' | '1:1' | '4:5' | '3:4';
+    }
+  ) => {
+    const v = override?.video ?? videoClips;
+    const t = override?.text ?? textClips;
+    const s = override?.sfx ?? sfxClips;
+    const m = override?.music ?? musicClips;
+    const p = override?.props ?? clipPropsMap;
+    const a = override?.aspect ?? aspectRatio;
+
+    const snap: TimelineSnapshot = {
+      id: `snap-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      label,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      videoClips: JSON.parse(JSON.stringify(v)),
+      textClips: JSON.parse(JSON.stringify(t)),
+      sfxClips: JSON.parse(JSON.stringify(s)),
+      musicClips: JSON.parse(JSON.stringify(m)),
+      clipPropsMap: JSON.parse(JSON.stringify(p)),
+      aspectRatio: a
+    };
+
+    setHistorySnapshots((prev) => [snap, ...prev].slice(0, 50));
+    setCurrentSnapshotId(snap.id);
+    return snap;
+  };
+
   const updateClipBounds = (clipId: string, newStart: number, newEnd: number) => {
     setVideoClips((prev) => prev.map((c) => c.id === clipId ? { ...c, start: newStart, end: newEnd } : c));
     setTextClips((prev) => prev.map((c) => c.id === clipId ? { ...c, start: newStart, end: newEnd } : c));
     setSfxClips((prev) => prev.map((c) => c.id === clipId ? { ...c, start: newStart, end: newEnd } : c));
+    setMusicClips((prev) => prev.map((c) => c.id === clipId ? { ...c, start: newStart, end: newEnd } : c));
   };
 
   // Manual Video Import Handler
@@ -287,16 +366,22 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
       tempVideo.src = url;
       tempVideo.onloadedmetadata = () => {
         const dur = tempVideo.duration || 18;
+        setOriginalVideoDuration(dur);
         const newClipId = `clip-v-imported-${Date.now()}`;
-        setVideoClips([
+        const newVClips: Clip[] = [
           { id: newClipId, type: 'video', title: file.name, start: 0, end: dur }
-        ]);
+        ];
+        const newProps = {
+          [newClipId]: getDefaultProperties('video', file.name)
+        };
+        setVideoClips(newVClips);
         setClipPropsMap((prev) => ({
           ...prev,
-          [newClipId]: getDefaultProperties('video', file.name)
+          ...newProps
         }));
         setSelectedClipId(newClipId);
         setCurrentTime(0);
+        saveSnapshot(`Import Video: ${file.name}`, { video: newVClips, props: { ...clipPropsMap, ...newProps } });
       };
     }
   };
@@ -324,17 +409,21 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
 
     const existingProps = clipPropsMap[activeVideoClip.id] || getDefaultProperties('video', activeVideoClip.title);
 
-    setVideoClips((prev) =>
-      prev.filter((c) => c.id !== activeVideoClip.id).concat([first, second]).sort((a, b) => a.start - b.start)
-    );
+    const updatedClips = videoClips
+      .filter((c) => c.id !== activeVideoClip.id)
+      .concat([first, second])
+      .sort((a, b) => a.start - b.start);
 
-    setClipPropsMap((prev) => ({
-      ...prev,
+    const updatedProps = {
+      ...clipPropsMap,
       [firstId]: { ...existingProps },
       [secondId]: { ...existingProps }
-    }));
+    };
 
+    setVideoClips(updatedClips);
+    setClipPropsMap(updatedProps);
     setSelectedClipId(second.id);
+    saveSnapshot('Split Clip', { video: updatedClips, props: updatedProps });
   };
 
   // Trim Left of selected clip to current playhead
@@ -342,6 +431,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     if (!selectedClip) return;
     if (currentTime <= selectedClip.start || currentTime >= selectedClip.end) return;
     updateClipBounds(selectedClip.id, currentTime, selectedClip.end);
+    saveSnapshot(`Trim Left (${selectedClip.title})`);
   };
 
   // Trim Right of selected clip to current playhead
@@ -349,6 +439,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     if (!selectedClip) return;
     if (currentTime <= selectedClip.start || currentTime >= selectedClip.end) return;
     updateClipBounds(selectedClip.id, selectedClip.start, currentTime);
+    saveSnapshot(`Trim Right (${selectedClip.title})`);
   };
 
   // Duplicate selected clip
@@ -364,23 +455,59 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
       end: selectedClip.end + dur
     };
 
-    if (selectedClip.type === 'video') setVideoClips((prev) => [...prev, newClip]);
-    else if (selectedClip.type === 'text') setTextClips((prev) => [...prev, newClip]);
-    else setSfxClips((prev) => [...prev, newClip]);
+    let updatedVideo = videoClips;
+    let updatedText = textClips;
+    let updatedSfx = sfxClips;
+    let updatedMusic = musicClips;
 
+    if (selectedClip.type === 'video') {
+      updatedVideo = [...videoClips, newClip];
+      setVideoClips(updatedVideo);
+    } else if (selectedClip.type === 'text') {
+      updatedText = [...textClips, newClip];
+      setTextClips(updatedText);
+    } else if (selectedClip.type === 'sfx') {
+      updatedSfx = [...sfxClips, newClip];
+      setSfxClips(updatedSfx);
+    } else if (selectedClip.type === 'audio') {
+      updatedMusic = [...musicClips, newClip];
+      setMusicClips(updatedMusic);
+    }
+
+    const updatedProps = { ...clipPropsMap };
     if (clipPropsMap[selectedClip.id]) {
-      setClipPropsMap((prev) => ({ ...prev, [newId]: { ...prev[selectedClip.id] } }));
+      updatedProps[newId] = { ...clipPropsMap[selectedClip.id] };
+      setClipPropsMap(updatedProps);
     }
     setSelectedClipId(newId);
+    saveSnapshot(`Duplicate ${selectedClip.type} Clip`, {
+      video: updatedVideo,
+      text: updatedText,
+      sfx: updatedSfx,
+      music: updatedMusic,
+      props: updatedProps
+    });
   };
 
   // Delete selected clip
   const handleDelete = () => {
     if (!selectedClipId) return;
-    setVideoClips((prev) => prev.filter((c) => c.id !== selectedClipId));
-    setTextClips((prev) => prev.filter((c) => c.id !== selectedClipId));
-    setSfxClips((prev) => prev.filter((c) => c.id !== selectedClipId));
+    const updatedVideo = videoClips.filter((c) => c.id !== selectedClipId);
+    const updatedText = textClips.filter((c) => c.id !== selectedClipId);
+    const updatedSfx = sfxClips.filter((c) => c.id !== selectedClipId);
+    const updatedMusic = musicClips.filter((c) => c.id !== selectedClipId);
+
+    setVideoClips(updatedVideo);
+    setTextClips(updatedText);
+    setSfxClips(updatedSfx);
+    setMusicClips(updatedMusic);
     setSelectedClipId(null);
+    saveSnapshot('Delete Clip', {
+      video: updatedVideo,
+      text: updatedText,
+      sfx: updatedSfx,
+      music: updatedMusic
+    });
   };
 
   // Ripple Delete
@@ -389,26 +516,52 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     const dur = selectedClip.end - selectedClip.start;
     const clipStart = selectedClip.start;
 
+    let updatedVideo = videoClips;
+    let updatedText = textClips;
+    let updatedSfx = sfxClips;
+    let updatedMusic = musicClips;
+
     if (selectedClip.type === 'video') {
-      setVideoClips((prev) =>
-        prev
-          .filter((c) => c.id !== selectedClip.id)
-          .map((c) => c.start > clipStart ? { ...c, start: Math.max(0, c.start - dur), end: Math.max(0.3, c.end - dur) } : c)
-      );
+      updatedVideo = videoClips
+        .filter((c) => c.id !== selectedClip.id)
+        .map((c) => c.start > clipStart ? { ...c, start: Math.max(0, c.start - dur), end: Math.max(0.3, c.end - dur) } : c);
+      setVideoClips(updatedVideo);
     } else if (selectedClip.type === 'text') {
-      setTextClips((prev) =>
-        prev
-          .filter((c) => c.id !== selectedClip.id)
-          .map((c) => c.start > clipStart ? { ...c, start: Math.max(0, c.start - dur), end: Math.max(0.3, c.end - dur) } : c)
-      );
+      updatedText = textClips
+        .filter((c) => c.id !== selectedClip.id)
+        .map((c) => c.start > clipStart ? { ...c, start: Math.max(0, c.start - dur), end: Math.max(0.3, c.end - dur) } : c);
+      setTextClips(updatedText);
+    } else if (selectedClip.type === 'sfx') {
+      updatedSfx = sfxClips
+        .filter((c) => c.id !== selectedClip.id)
+        .map((c) => c.start > clipStart ? { ...c, start: Math.max(0, c.start - dur), end: Math.max(0.3, c.end - dur) } : c);
+      setSfxClips(updatedSfx);
     } else {
-      setSfxClips((prev) =>
-        prev
-          .filter((c) => c.id !== selectedClip.id)
-          .map((c) => c.start > clipStart ? { ...c, start: Math.max(0, c.start - dur), end: Math.max(0.3, c.end - dur) } : c)
-      );
+      updatedMusic = musicClips
+        .filter((c) => c.id !== selectedClip.id)
+        .map((c) => c.start > clipStart ? { ...c, start: Math.max(0, c.start - dur), end: Math.max(0.3, c.end - dur) } : c);
+      setMusicClips(updatedMusic);
     }
+
     setSelectedClipId(null);
+    saveSnapshot('Ripple Delete', {
+      video: updatedVideo,
+      text: updatedText,
+      sfx: updatedSfx,
+      music: updatedMusic
+    });
+  };
+
+  const handleToggleFullscreen = () => {
+    const previewContainer = document.getElementById('sabycut-preview-container');
+    if (!previewContainer) return;
+    if (!document.fullscreenElement) {
+      previewContainer.requestFullscreen?.().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      setIsFullscreen(false);
+    }
   };
 
   // Add Khmer text overlay
@@ -422,18 +575,21 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
       end: Math.min(currentTime + 3.0, totalDuration),
       text: 'ចំណងជើងខ្មែរថ្មី'
     };
-    setTextClips((prev) => [...prev, newTextClip]);
-    setClipPropsMap((prev) => ({
-      ...prev,
+    const updatedText = [...textClips, newTextClip];
+    const updatedProps = {
+      ...clipPropsMap,
       [newId]: getDefaultProperties('text', 'Khmer Caption', 'ចំណងជើងខ្មែរថ្មី')
-    }));
+    };
+    setTextClips(updatedText);
+    setClipPropsMap(updatedProps);
     setSelectedClipId(newId);
     setIsInspectorOpen(true);
+    saveSnapshot('Add Khmer Text', { text: updatedText, props: updatedProps });
   };
 
   // Add SFX clip
-  const handleAddSFX = (type: 'whoosh' | 'ding' | 'pop' | 'bass_drop') => {
-    const duration = type === 'bass_drop' ? 1.8 : type === 'ding' ? 1.0 : 0.5;
+  const handleAddSFX = (type: 'whoosh' | 'ding' | 'pop' | 'hit' | 'riser' | 'impact') => {
+    const duration = type === 'riser' || type === 'impact' ? 1.5 : type === 'ding' ? 1.0 : 0.5;
     const newId = `clip-s-${Date.now()}`;
     const newClip: Clip = {
       id: newId,
@@ -443,13 +599,255 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
       start: currentTime,
       end: currentTime + duration
     };
-    setSfxClips((prev) => [...prev, newClip]);
-    setClipPropsMap((prev) => ({
-      ...prev,
+    const updatedSfx = [...sfxClips, newClip];
+    const updatedProps = {
+      ...clipPropsMap,
       [newId]: getDefaultProperties('sfx', type.toUpperCase())
-    }));
+    };
+    setSfxClips(updatedSfx);
+    setClipPropsMap(updatedProps);
     setSelectedClipId(newId);
     sfxSynth.playByType(type);
+    saveSnapshot(`Add SFX: ${type.toUpperCase()}`, { sfx: updatedSfx, props: updatedProps });
+  };
+
+  // Add Music Track
+  const handleAddMusic = () => {
+    const newId = `clip-m-${Date.now()}`;
+    const newClip: Clip = {
+      id: newId,
+      type: 'audio',
+      title: 'Soundtrack Track',
+      start: currentTime,
+      end: Math.min(currentTime + 15.0, totalDuration)
+    };
+    const updatedMusic = [...musicClips, newClip];
+    const updatedProps = {
+      ...clipPropsMap,
+      [newId]: getDefaultProperties('audio', 'Soundtrack Track')
+    };
+    setMusicClips(updatedMusic);
+    setClipPropsMap(updatedProps);
+    setSelectedClipId(newId);
+    saveSnapshot('Add Music Track', { music: updatedMusic, props: updatedProps });
+  };
+
+  // Revert to initial AI version
+  const handleRevertToAi = () => {
+    if (!aiVersionSnapshot) return;
+    setVideoClips(JSON.parse(JSON.stringify(aiVersionSnapshot.videoClips)));
+    setTextClips(JSON.parse(JSON.stringify(aiVersionSnapshot.textClips)));
+    setSfxClips(JSON.parse(JSON.stringify(aiVersionSnapshot.sfxClips)));
+    if (aiVersionSnapshot.musicClips) {
+      setMusicClips(JSON.parse(JSON.stringify(aiVersionSnapshot.musicClips)));
+    }
+    setClipPropsMap(JSON.parse(JSON.stringify(aiVersionSnapshot.clipPropsMap)));
+    setAspectRatio(aiVersionSnapshot.aspectRatio);
+    setCurrentSnapshotId(aiVersionSnapshot.id);
+    setIsComparingOriginal(false);
+    saveSnapshot('Reverted to AI Version', {
+      video: aiVersionSnapshot.videoClips,
+      text: aiVersionSnapshot.textClips,
+      sfx: aiVersionSnapshot.sfxClips,
+      music: aiVersionSnapshot.musicClips,
+      props: aiVersionSnapshot.clipPropsMap,
+      aspect: aiVersionSnapshot.aspectRatio
+    });
+  };
+
+  // Restore snapshot from version history modal
+  const handleRestoreSnapshot = (snap: TimelineSnapshot) => {
+    setVideoClips(JSON.parse(JSON.stringify(snap.videoClips)));
+    setTextClips(JSON.parse(JSON.stringify(snap.textClips)));
+    setSfxClips(JSON.parse(JSON.stringify(snap.sfxClips)));
+    if (snap.musicClips) {
+      setMusicClips(JSON.parse(JSON.stringify(snap.musicClips)));
+    }
+    setClipPropsMap(JSON.parse(JSON.stringify(snap.clipPropsMap)));
+    setAspectRatio(snap.aspectRatio);
+    setCurrentSnapshotId(snap.id);
+    setIsComparingOriginal(false);
+    setIsVersionHistoryOpen(false);
+  };
+
+  // Apply partial edit on selected clip or range
+  const handleApplyPartialEdit = (clipId: string, instruction: string) => {
+    const targetClip = allClips.find((c) => c.id === clipId);
+    if (!targetClip) return;
+
+    const lower = instruction.toLowerCase();
+
+    if (lower.includes('fast') || lower.includes('speed') || lower.includes('quick')) {
+      const newSpeed = 1.5;
+      const oldDur = targetClip.end - targetClip.start;
+      const newDur = Math.max(0.4, Number((oldDur / 1.5).toFixed(2)));
+      const newEnd = Number((targetClip.start + newDur).toFixed(2));
+
+      const updatedClips = videoClips.map((c) => c.id === clipId ? { ...c, end: newEnd } : c);
+      const updatedProps = {
+        ...clipPropsMap,
+        [clipId]: {
+          ...(clipPropsMap[clipId] || getDefaultProperties(targetClip.type, targetClip.title)),
+          speed: newSpeed
+        }
+      };
+      setVideoClips(updatedClips);
+      setClipPropsMap(updatedProps);
+      saveSnapshot(`Partial AI: 1.5x Speed on ${targetClip.title}`, { video: updatedClips, props: updatedProps });
+    } else if (lower.includes('slow') || lower.includes('dramatic')) {
+      const newSpeed = 0.75;
+      const oldDur = targetClip.end - targetClip.start;
+      const newDur = Number((oldDur * 1.33).toFixed(2));
+      const newEnd = Number((targetClip.start + newDur).toFixed(2));
+
+      const updatedClips = videoClips.map((c) => c.id === clipId ? { ...c, end: newEnd } : c);
+      const updatedProps = {
+        ...clipPropsMap,
+        [clipId]: {
+          ...(clipPropsMap[clipId] || getDefaultProperties(targetClip.type, targetClip.title)),
+          speed: newSpeed
+        }
+      };
+      setVideoClips(updatedClips);
+      setClipPropsMap(updatedProps);
+      saveSnapshot(`Partial AI: Slow motion on ${targetClip.title}`, { video: updatedClips, props: updatedProps });
+    } else if (lower.includes('silence') || lower.includes('trim')) {
+      const dur = targetClip.end - targetClip.start;
+      const trimAmount = Number((dur * 0.15).toFixed(2));
+      const newStart = Number((targetClip.start + trimAmount).toFixed(2));
+      const newEnd = Number((targetClip.end - trimAmount).toFixed(2));
+      const updatedClips = videoClips.map((c) => c.id === clipId ? { ...c, start: newStart, end: newEnd } : c);
+      setVideoClips(updatedClips);
+      saveSnapshot(`Partial AI: Remove silence from ${targetClip.title}`, { video: updatedClips });
+    } else if (lower.includes('caption') || lower.includes('text') || lower.includes('khmer')) {
+      const newCapId = `clip-t-partial-${Date.now()}`;
+      const newCap: Clip = {
+        id: newCapId,
+        type: 'text',
+        title: 'AI Caption',
+        start: targetClip.start,
+        end: targetClip.end,
+        text: 'ប្លង់សំខាន់នៃវីដេអូ'
+      };
+      const updatedText = [...textClips, newCap];
+      const updatedProps = {
+        ...clipPropsMap,
+        [newCapId]: getDefaultProperties('text', 'AI Caption', 'ប្លង់សំខាន់នៃវីដេអូ')
+      };
+      setTextClips(updatedText);
+      setClipPropsMap(updatedProps);
+      setSelectedClipId(newCapId);
+      saveSnapshot(`Partial AI: Add Khmer caption to ${targetClip.title}`, { text: updatedText, props: updatedProps });
+    } else {
+      const updatedProps = {
+        ...clipPropsMap,
+        [clipId]: {
+          ...(clipPropsMap[clipId] || getDefaultProperties(targetClip.type, targetClip.title)),
+          saturation: 20,
+          contrast: 15
+        }
+      };
+      setClipPropsMap(updatedProps);
+      saveSnapshot(`Partial AI: Enhance ${targetClip.title}`, { props: updatedProps });
+    }
+  };
+
+  // Quick Fix Tools
+  const handleQuickFix = (fixType: 'silence' | 'captions' | 'sfx' | 'music' | 'pacing' | 'aspect') => {
+    setIsQuickFixMenuOpen(false);
+    switch (fixType) {
+      case 'silence': {
+        let currentPos = 0;
+        const newVideoClips: Clip[] = [];
+        for (const c of videoClips) {
+          const originalDur = c.end - c.start;
+          const trimmedDur = Math.max(0.6, Number((originalDur * 0.85).toFixed(2)));
+          newVideoClips.push({
+            ...c,
+            start: Number(currentPos.toFixed(2)),
+            end: Number((currentPos + trimmedDur).toFixed(2))
+          });
+          currentPos += trimmedDur;
+        }
+        setVideoClips(newVideoClips);
+        saveSnapshot('Quick Fix: Remove Silence', { video: newVideoClips });
+        break;
+      }
+      case 'captions': {
+        const newProps = { ...clipPropsMap };
+        textClips.forEach((t) => {
+          newProps[t.id] = {
+            ...(newProps[t.id] || getDefaultProperties('text', t.title, t.text)),
+            fontFamily: 'Noto Sans Khmer',
+            fontSize: 22,
+            color: '#ffffff',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            strokeWidth: 2,
+            strokeColor: '#000000'
+          };
+        });
+        setClipPropsMap(newProps);
+        saveSnapshot('Quick Fix: Standardize Khmer Captions', { props: newProps });
+        break;
+      }
+      case 'sfx': {
+        const sfxCycle: Record<string, 'whoosh' | 'ding' | 'pop' | 'hit' | 'riser' | 'impact'> = {
+          whoosh: 'pop',
+          pop: 'hit',
+          hit: 'ding',
+          ding: 'riser',
+          riser: 'impact',
+          impact: 'whoosh'
+        };
+        const newSfxClips = sfxClips.map((s) => {
+          const currentType = (s.sfxType || 'whoosh') as keyof typeof sfxCycle;
+          const nextType = sfxCycle[currentType] || 'whoosh';
+          return {
+            ...s,
+            title: nextType.toUpperCase(),
+            sfxType: nextType
+          };
+        });
+        setSfxClips(newSfxClips);
+        sfxSynth.playByType('ding');
+        saveSnapshot('Quick Fix: Swapped SFX Types', { sfx: newSfxClips });
+        break;
+      }
+      case 'music': {
+        const titles = ['Energetic Beat', 'Lofi Ambient Groove', 'Cinematic Pulse', 'Background Rhythm'];
+        const newMusic = musicClips.map((m) => {
+          const currentIndex = titles.indexOf(m.title);
+          const nextTitle = titles[(currentIndex + 1) % titles.length] || 'Dynamic Rhythm';
+          return {
+            ...m,
+            title: nextTitle
+          };
+        });
+        setMusicClips(newMusic);
+        saveSnapshot('Quick Fix: Change Music Track', { music: newMusic });
+        break;
+      }
+      case 'pacing': {
+        const newProps = { ...clipPropsMap };
+        videoClips.forEach((v) => {
+          const curSpeed = newProps[v.id]?.speed || 1.0;
+          const nextSpeed = curSpeed === 1.0 ? 1.25 : curSpeed === 1.25 ? 1.5 : 1.0;
+          newProps[v.id] = {
+            ...(newProps[v.id] || getDefaultProperties('video', v.title)),
+            speed: nextSpeed
+          };
+        });
+        setClipPropsMap(newProps);
+        saveSnapshot('Quick Fix: Change Pacing', { props: newProps });
+        break;
+      }
+      case 'aspect': {
+        const nextAspect = aspectRatio === '9:16' ? '16:9' : aspectRatio === '16:9' ? '1:1' : '9:16';
+        setAspectRatio(nextAspect);
+        saveSnapshot(`Quick Fix: Change Aspect Ratio (${nextAspect})`, { aspect: nextAspect });
+        break;
+      }
+    }
   };
 
   // Timeline scrub click
@@ -486,6 +884,12 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     if (res.videoUrl) {
       setVideoSrc(res.videoUrl);
     }
+    if (res.videoDuration) {
+      setOriginalVideoDuration(res.videoDuration);
+    }
+    if (res.aspectRatio) {
+      setAspectRatio(res.aspectRatio);
+    }
 
     const newVideo: Clip[] = res.cuts.map((c, idx) => ({
       id: `ai-v-${idx + 1}`,
@@ -498,20 +902,29 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     const newSfx: Clip[] = res.sfx.map((s, idx) => ({
       id: `ai-s-${idx + 1}`,
       type: 'sfx',
-      title: s.type.toUpperCase(),
+      title: s.title || s.type.toUpperCase(),
       sfxType: s.type,
       start: s.time,
-      end: s.time + 0.6
+      end: s.time + (s.type === 'riser' || s.type === 'impact' ? 1.5 : 0.6)
     }));
 
     const newText: Clip[] = res.captions.map((cap, idx) => ({
       id: `ai-t-${idx + 1}`,
       type: 'text',
-      title: `Caption ${idx + 1}`,
+      title: cap.title || `Caption ${idx + 1}`,
       start: cap.start,
       end: cap.end,
       text: cap.text
     }));
+
+    const totalDur = Math.max(
+      ...newVideo.map((c) => c.end),
+      res.videoDuration || 18
+    );
+
+    const newMusic: Clip[] = [
+      { id: 'ai-m-1', type: 'audio', title: 'Background Score', start: 0, end: totalDur }
+    ];
 
     // Populate properties map with defaults
     const newPropsMap: Record<string, ClipProperties> = {};
@@ -524,17 +937,39 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
     newText.forEach((t) => {
       newPropsMap[t.id] = getDefaultProperties('text', t.title, t.text);
     });
+    newMusic.forEach((m) => {
+      newPropsMap[m.id] = getDefaultProperties('audio', m.title);
+    });
 
     setVideoClips(newVideo);
     setSfxClips(newSfx);
     setTextClips(newText);
+    setMusicClips(newMusic);
     setClipPropsMap(newPropsMap);
+
+    const initialAiSnap: TimelineSnapshot = {
+      id: `ai-initial-${Date.now()}`,
+      label: 'Initial AI Auto Cut',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      videoClips: newVideo,
+      textClips: newText,
+      sfxClips: newSfx,
+      musicClips: newMusic,
+      clipPropsMap: newPropsMap,
+      aspectRatio: res.aspectRatio || aspectRatio
+    };
+
+    setAiVersionSnapshot(initialAiSnap);
+    setHistorySnapshots([initialAiSnap]);
+    setCurrentSnapshotId(initialAiSnap.id);
+    setShowAiBanner(true);
+    setIsComparingOriginal(false);
 
     if (newVideo.length > 0) {
       setSelectedClipId(newVideo[0].id);
     }
     setCurrentTime(0);
-    setIsPlaying(true);
+    setIsPlaying(false);
   };
 
   const formatTime = (secs: number) => {
@@ -545,7 +980,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0a0b10', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'var(--app-height, 100dvh)', width: '100%', backgroundColor: '#0a0b10', overflow: 'hidden' }}>
       {/* Hidden file input for manual video import */}
       <input
         ref={fileInputRef}
@@ -558,16 +993,17 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
       {/* Studio Header */}
       <header style={{
         height: isMobile ? 'auto' : '52px',
-        paddingTop: isMobile ? 'max(env(safe-area-inset-top, 0px), 8px)' : '0px',
-        paddingBottom: isMobile ? '8px' : '0px',
-        paddingLeft: '12px',
-        paddingRight: '12px',
+        paddingTop: isMobile ? 'max(var(--sat, 0px), 8px)' : 'max(var(--sat, 0px), 6px)',
+        paddingBottom: '8px',
+        paddingLeft: 'max(var(--sal, 0px), 12px)',
+        paddingRight: 'max(var(--sar, 0px), 12px)',
         backgroundColor: '#12141c',
         borderBottom: '1px solid #232738',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        zIndex: 20
+        zIndex: 20,
+        flexShrink: 0
       }}>
         {isMobile ? (
           <>
@@ -577,6 +1013,8 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 onClick={onBack}
                 style={{
                   padding: '6px',
+                  minWidth: '44px',
+                  minHeight: '44px',
                   borderRadius: '8px',
                   backgroundColor: '#1a1d2b',
                   color: '#cbd5e1',
@@ -587,7 +1025,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 }}
                 title="Back to Dashboard"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={18} />
               </button>
               <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff' }}>
                 SABYCUT
@@ -596,17 +1034,22 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
 
             {/* Center: Aspect Ratio Pill */}
             <div style={{ display: 'flex', gap: '2px', backgroundColor: '#1a1d2b', padding: '2px', borderRadius: '6px' }}>
-              {(['9:16', '16:9', '1:1'] as const).map((r) => (
+              {(['9:16', '16:9', '1:1', '4:5', '3:4'] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setAspectRatio(r)}
                   style={{
-                    padding: '3px 7px',
+                    padding: '6px 8px',
+                    minWidth: '38px',
+                    minHeight: '38px',
                     borderRadius: '4px',
                     backgroundColor: aspectRatio === r ? '#4f46e5' : 'transparent',
                     color: aspectRatio === r ? '#ffffff' : '#94a3b8',
                     fontSize: '11px',
-                    fontWeight: 700
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                 >
                   {r}
@@ -621,8 +1064,11 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '4px',
-                  padding: '6px 8px',
+                  padding: '6px 10px',
+                  minWidth: '44px',
+                  minHeight: '44px',
                   borderRadius: '6px',
                   backgroundColor: 'rgba(167, 139, 250, 0.15)',
                   border: '1px solid rgba(167, 139, 250, 0.4)',
@@ -632,7 +1078,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 }}
                 title="AI Auto Cut"
               >
-                <Sparkles size={12} />
+                <Sparkles size={14} />
                 <span>AI</span>
               </button>
 
@@ -641,8 +1087,10 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '4px',
-                  padding: '6px 12px',
+                  padding: '6px 14px',
+                  minHeight: '44px',
                   borderRadius: '6px',
                   backgroundColor: '#10b981',
                   color: '#ffffff',
@@ -650,7 +1098,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                   fontWeight: 700
                 }}
               >
-                <Download size={13} />
+                <Download size={15} />
                 <span>{t('nav.export')}</span>
               </button>
             </div>
@@ -676,7 +1124,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 SABYCUT Studio
               </span>
               <span style={{ fontSize: '11px', color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-                CapCut Mode
+                Studio Mode
               </span>
             </div>
 
@@ -717,12 +1165,87 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 <span>{isPlaying ? t('editor.pause') : t('editor.play')}</span>
               </button>
 
+              {/* Frame Step Back */}
+              <button
+                onClick={() => setCurrentTime((p) => Math.max(0, p - 1/30))}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: '#1a1d2b',
+                  border: '1px solid #282d3f',
+                  color: '#cbd5e1'
+                }}
+                title={t('editor.frameStepBack', 'Step Backward')}
+              >
+                <ChevronLeft size={14} />
+              </button>
+
+              {/* Frame Step Forward */}
+              <button
+                onClick={() => setCurrentTime((p) => Math.min(totalDuration, p + 1/30))}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: '#1a1d2b',
+                  border: '1px solid #282d3f',
+                  color: '#cbd5e1'
+                }}
+                title={t('editor.frameStepFwd', 'Step Forward')}
+              >
+                <ChevronRight size={14} />
+              </button>
+
+              {/* Loop Toggle */}
+              <button
+                onClick={() => setIsLooping(!isLooping)}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: isLooping ? 'rgba(16, 185, 129, 0.2)' : '#1a1d2b',
+                  border: isLooping ? '1px solid #10b981' : '1px solid #282d3f',
+                  color: isLooping ? '#10b981' : '#cbd5e1'
+                }}
+                title={t('editor.loop', 'Loop Playback')}
+              >
+                <RefreshCw size={14} />
+              </button>
+
+              {/* Ratio Guides Toggle */}
+              <button
+                onClick={() => setShowRatioGuides(!showRatioGuides)}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: showRatioGuides ? 'rgba(99, 102, 241, 0.2)' : '#1a1d2b',
+                  border: showRatioGuides ? '1px solid #818cf8' : '1px solid #282d3f',
+                  color: showRatioGuides ? '#818cf8' : '#cbd5e1'
+                }}
+                title="Ratio Guides"
+              >
+                <Eye size={14} />
+              </button>
+
+              {/* Fullscreen Preview */}
+              <button
+                onClick={handleToggleFullscreen}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: isFullscreen ? 'rgba(99, 102, 241, 0.2)' : '#1a1d2b',
+                  border: isFullscreen ? '1px solid #818cf8' : '1px solid #282d3f',
+                  color: isFullscreen ? '#818cf8' : '#cbd5e1'
+                }}
+                title={t('editor.fullscreen', 'Fullscreen')}
+              >
+                <Maximize2 size={14} />
+              </button>
+
               <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#818cf8', marginLeft: '6px' }}>
                 {formatTime(currentTime)} / {formatTime(totalDuration)}
               </span>
 
               <div style={{ display: 'flex', gap: '4px', backgroundColor: '#1a1d2b', padding: '3px', borderRadius: '6px', marginLeft: '6px' }}>
-                {(['9:16', '16:9', '1:1'] as const).map((r) => (
+                {(['9:16', '16:9', '1:1', '4:5', '3:4'] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setAspectRatio(r)}
@@ -835,9 +1358,112 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
         )}
       </header>
 
+      {/* AI Cut Notification Banner */}
+      {showAiBanner && (
+        <div style={{
+          backgroundColor: '#161426',
+          borderBottom: '1px solid #382d56',
+          padding: '8px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          zIndex: 15
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '6px',
+              backgroundColor: 'rgba(168, 85, 247, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Sparkles size={15} color="#c084fc" />
+            </div>
+            <div>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#f3e8ff' }}>
+                {t('autocut.bannerTitle')}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => setIsRegenerateOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                borderRadius: '6px',
+                backgroundColor: '#29213d',
+                border: '1px solid #4a386c',
+                color: '#e9d5ff',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <RefreshCw size={13} />
+              <span>{t('autocut.regenerate')}</span>
+            </button>
+
+            <button
+              onClick={() => setIsComparingOriginal(!isComparingOriginal)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                borderRadius: '6px',
+                backgroundColor: isComparingOriginal ? '#4338ca' : '#1e2436',
+                border: isComparingOriginal ? '1px solid #818cf8' : '1px solid #2e3954',
+                color: isComparingOriginal ? '#ffffff' : '#93c5fd',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              {isComparingOriginal ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{isComparingOriginal ? 'Stop Compare' : t('autocut.compareOriginal')}</span>
+            </button>
+
+            <button
+              onClick={handleRevertToAi}
+              disabled={!aiVersionSnapshot}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                borderRadius: '6px',
+                backgroundColor: '#1b2420',
+                border: '1px solid #28543b',
+                color: '#86efac',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: aiVersionSnapshot ? 'pointer' : 'not-allowed',
+                opacity: aiVersionSnapshot ? 1 : 0.5
+              }}
+            >
+              <RotateCcw size={13} />
+              <span>{t('autocut.revertAi')}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Center Area: Player Viewport + Clip Inspector */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: isMobile && !isLandscape ? 'column' : 'row',
+        overflow: 'hidden',
+        minHeight: 0
+      }}>
         {/* Center Viewport Preview */}
         <div style={{
           flex: 1,
@@ -846,25 +1472,75 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          padding: '8px',
+          minHeight: 0
         }}>
+          {/* Comparison Mode Watermark / Overlay */}
+          {isComparingOriginal && (
+            <div style={{
+              position: 'absolute',
+              top: '16px',
+              left: '16px',
+              backgroundColor: 'rgba(239, 68, 68, 0.9)',
+              color: '#ffffff',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              zIndex: 35,
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.4)'
+            }}>
+              <Eye size={14} />
+              <span>COMPARING: Original Footage (Uncut)</span>
+            </div>
+          )}
           {/* Canvas Player Box */}
-          <div style={{
-            width: aspectRatio === '9:16' ? (isMobile ? '180px' : '280px') : aspectRatio === '16:9' ? (isMobile ? '310px' : '540px') : (isMobile ? '230px' : '360px'),
-            height: aspectRatio === '9:16' ? (isMobile ? '320px' : '498px') : aspectRatio === '16:9' ? (isMobile ? '174px' : '304px') : (isMobile ? '230px' : '360px'),
-            maxHeight: isMobile ? '38vh' : 'none',
-            maxWidth: isMobile ? '92vw' : 'none',
-            backgroundColor: '#0f1118',
-            border: '1px solid #23273a',
-            borderRadius: '12px',
-            position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
-          }}>
+          <div
+            id="sabycut-preview-container"
+            style={{
+              width: aspectRatio === '9:16' ? (isMobile ? (isLandscape ? '140px' : '180px') : '280px') : aspectRatio === '16:9' ? (isMobile ? (isLandscape ? '240px' : '310px') : '540px') : aspectRatio === '4:5' ? (isMobile ? (isLandscape ? '160px' : '200px') : '320px') : aspectRatio === '3:4' ? (isMobile ? (isLandscape ? '165px' : '210px') : '330px') : (isMobile ? (isLandscape ? '170px' : '230px') : '360px'),
+              height: aspectRatio === '9:16' ? (isMobile ? (isLandscape ? '248px' : '320px') : '498px') : aspectRatio === '16:9' ? (isMobile ? (isLandscape ? '135px' : '174px') : '304px') : aspectRatio === '4:5' ? (isMobile ? (isLandscape ? '200px' : '250px') : '400px') : aspectRatio === '3:4' ? (isMobile ? (isLandscape ? '220px' : '280px') : '440px') : (isMobile ? (isLandscape ? '170px' : '230px') : '360px'),
+              maxHeight: isMobile ? (isLandscape ? '46vh' : '38vh') : 'none',
+              maxWidth: isMobile ? (isLandscape ? '45vw' : '92vw') : 'none',
+              backgroundColor: '#0f1118',
+              border: '1px solid #23273a',
+              borderRadius: '12px',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+            }}
+          >
+            {/* Ratio Guides Overlay */}
+            {showRatioGuides && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                pointerEvents: 'none',
+                zIndex: 15,
+                border: '1px dashed rgba(255, 255, 255, 0.3)'
+              }}>
+                <div style={{ position: 'absolute', left: '33.33%', top: 0, bottom: 0, width: '1px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <div style={{ position: 'absolute', left: '66.66%', top: 0, bottom: 0, width: '1px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <div style={{ position: 'absolute', top: '33.33%', left: 0, right: 0, height: '1px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <div style={{ position: 'absolute', top: '66.66%', left: 0, right: 0, height: '1px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <div style={{ position: 'absolute', top: '50%', left: '46%', width: '8%', height: '1px', backgroundColor: 'rgba(99, 102, 241, 0.8)' }} />
+                <div style={{ position: 'absolute', left: '50%', top: '46%', height: '8%', width: '1px', backgroundColor: 'rgba(99, 102, 241, 0.8)' }} />
+                <div style={{
+                  position: 'absolute',
+                  inset: '10%',
+                  border: '1px solid rgba(234, 179, 8, 0.35)',
+                  borderRadius: '4px'
+                }} />
+              </div>
+            )}
 
             {/* Real Video Player with live CSS Transform and Color Grading */}
             {videoSrc ? (
@@ -957,58 +1633,142 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
         {/* Mobile Scrubber Controls Bar */}
         {isMobile && (
           <div style={{
-            height: '44px',
+            height: '48px',
             backgroundColor: '#0d0f16',
             borderTop: '1px solid #1f2334',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 16px',
+            paddingLeft: 'max(var(--sal, 0px), 16px)',
+            paddingRight: 'max(var(--sar, 0px), 16px)',
             flexShrink: 0
           }}>
-            <button
-              onClick={() => {
-                setCurrentTime(0);
-                triggeredSFXRef.current.clear();
-              }}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '6px',
-                backgroundColor: '#1a1d2b',
-                color: '#cbd5e1',
-                border: '1px solid #282d3f',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '11px'
-              }}
-              title="Reset Playhead"
-            >
-              <RotateCcw size={13} />
-              <span>Reset</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                onClick={() => {
+                  setCurrentTime(0);
+                  triggeredSFXRef.current.clear();
+                }}
+                style={{
+                  minWidth: '44px',
+                  minHeight: '44px',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  color: '#cbd5e1',
+                  border: '1px solid #282d3f',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Reset Playhead"
+              >
+                <RotateCcw size={14} />
+              </button>
+
+              <button
+                onClick={() => setCurrentTime((p) => Math.max(0, p - 1/30))}
+                style={{
+                  minWidth: '44px',
+                  minHeight: '44px',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  color: '#cbd5e1',
+                  border: '1px solid #282d3f',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title={t('editor.frameStepBack', 'Step Backward')}
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <button
+                onClick={() => setCurrentTime((p) => Math.min(totalDuration, p + 1/30))}
+                style={{
+                  minWidth: '44px',
+                  minHeight: '44px',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  color: '#cbd5e1',
+                  border: '1px solid #282d3f',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title={t('editor.frameStepFwd', 'Step Forward')}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
 
             <button
               onClick={() => setIsPlaying(!isPlaying)}
               style={{
+                minHeight: '44px',
+                minWidth: '88px',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '6px',
-                padding: '6px 20px',
-                borderRadius: '20px',
+                padding: '6px 16px',
+                borderRadius: '22px',
                 backgroundColor: isPlaying ? '#eab308' : '#4f46e5',
                 color: '#ffffff',
                 fontSize: '13px',
                 fontWeight: 700
               }}
             >
-              {isPlaying ? <Pause size={15} /> : <Play size={15} />}
+              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
               <span>{isPlaying ? t('editor.pause') : t('editor.play')}</span>
             </button>
 
-            <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#818cf8', fontWeight: 600 }}>
-              {formatTime(currentTime)} / {formatTime(totalDuration)}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={() => setIsLooping(!isLooping)}
+                style={{
+                  minWidth: '44px',
+                  minHeight: '44px',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  backgroundColor: isLooping ? 'rgba(16, 185, 129, 0.2)' : '#1a1d2b',
+                  color: isLooping ? '#10b981' : '#cbd5e1',
+                  border: isLooping ? '1px solid #10b981' : '1px solid #282d3f',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title={t('editor.loop', 'Loop Playback')}
+              >
+                <RefreshCw size={14} />
+              </button>
+
+              <button
+                onClick={() => setShowRatioGuides(!showRatioGuides)}
+                style={{
+                  minWidth: '44px',
+                  minHeight: '44px',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  backgroundColor: showRatioGuides ? 'rgba(99, 102, 241, 0.2)' : '#1a1d2b',
+                  color: showRatioGuides ? '#818cf8' : '#cbd5e1',
+                  border: showRatioGuides ? '1px solid #818cf8' : '1px solid #282d3f',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Ratio Guides"
+              >
+                <Eye size={14} />
+              </button>
+
+              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#818cf8', fontWeight: 600 }}>
+                {formatTime(currentTime)}
+              </span>
+            </div>
           </div>
         )}
 
@@ -1026,25 +1786,28 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
 
       {/* Bottom Timeline Section (CapCut Multi-track) */}
       <div style={{
-        height: isMobile ? '200px' : '240px',
+        height: isMobile ? (isLandscape ? '160px' : '200px') : '240px',
         backgroundColor: '#10121a',
         borderTop: '1px solid #232738',
         display: 'flex',
         flexDirection: 'column',
-        paddingBottom: isMobile ? 'max(env(safe-area-inset-bottom, 0px), 8px)' : '0px'
+        paddingBottom: isMobile ? 'max(var(--sab, 0px), 8px)' : '0px',
+        flexShrink: 0
       }}>
         {/* Timeline Tools */}
         <div style={{
-          height: isMobile ? '46px' : '38px',
+          height: isMobile ? '48px' : '38px',
           backgroundColor: '#151722',
           borderBottom: '1px solid #232738',
-          padding: '0 12px',
+          paddingLeft: 'max(var(--sal, 0px), 12px)',
+          paddingRight: 'max(var(--sar, 0px), 12px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: isMobile ? 'flex-start' : 'space-between',
           overflowX: 'auto',
           WebkitOverflowScrolling: 'touch',
-          gap: '8px'
+          gap: '8px',
+          flexShrink: 0
         }}>
           {/* Editing Tools */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -1055,8 +1818,10 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '4px',
                   padding: '6px 12px',
+                  minHeight: '40px',
                   borderRadius: '6px',
                   backgroundColor: '#4f46e5',
                   color: '#ffffff',
@@ -1064,7 +1829,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                   fontWeight: 700
                 }}
               >
-                <Sliders size={13} />
+                <Sliders size={14} />
                 <span>Adjust</span>
               </button>
             )}
@@ -1074,18 +1839,22 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '4px',
-                padding: '4px 8px',
+                padding: isMobile ? '6px 12px' : '4px 8px',
+                minHeight: isMobile ? '44px' : 'auto',
+                minWidth: isMobile ? '44px' : 'auto',
                 borderRadius: '6px',
                 backgroundColor: '#1e2130',
                 border: '1px solid #2e3448',
                 color: '#cbd5e1',
                 fontSize: '11px',
-                fontWeight: 600
+                fontWeight: 600,
+                cursor: 'pointer'
               }}
               title={t('editor.split')}
             >
-              <Scissors size={13} color="#818cf8" />
+              <Scissors size={14} color="#818cf8" />
               <span>{t('editor.split')}</span>
             </button>
 
@@ -1095,18 +1864,22 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '2px',
-                padding: '4px 8px',
+                padding: isMobile ? '6px 12px' : '4px 8px',
+                minHeight: isMobile ? '44px' : 'auto',
+                minWidth: isMobile ? '44px' : 'auto',
                 borderRadius: '6px',
                 backgroundColor: '#1e2130',
                 border: '1px solid #2e3448',
                 color: selectedClip ? '#38bdf8' : '#64748b',
-                fontSize: '11px'
+                fontSize: '11px',
+                cursor: 'pointer'
               }}
-              title="Trim Left to Playhead"
+              title={t('editor.trim', 'Trim')}
             >
-              <ChevronLeft size={13} />
-              <span>Trim Left</span>
+              <ChevronLeft size={14} />
+              <span>{t('editor.trim')}</span>
             </button>
 
             <button
@@ -1115,18 +1888,22 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '2px',
-                padding: '4px 8px',
+                padding: isMobile ? '6px 12px' : '4px 8px',
+                minHeight: isMobile ? '44px' : 'auto',
+                minWidth: isMobile ? '44px' : 'auto',
                 borderRadius: '6px',
                 backgroundColor: '#1e2130',
                 border: '1px solid #2e3448',
                 color: selectedClip ? '#38bdf8' : '#64748b',
-                fontSize: '11px'
+                fontSize: '11px',
+                cursor: 'pointer'
               }}
-              title="Trim Right to Playhead"
+              title={t('editor.trim', 'Trim')}
             >
-              <span>Trim Right</span>
-              <ChevronRight size={13} />
+              <span>{t('editor.trim')}</span>
+              <ChevronRight size={14} />
             </button>
 
             <button
@@ -1135,18 +1912,22 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '4px',
-                padding: '4px 8px',
+                padding: isMobile ? '6px 12px' : '4px 8px',
+                minHeight: isMobile ? '44px' : 'auto',
+                minWidth: isMobile ? '44px' : 'auto',
                 borderRadius: '6px',
                 backgroundColor: '#1e2130',
                 border: '1px solid #2e3448',
                 color: selectedClip ? '#a78bfa' : '#64748b',
-                fontSize: '11px'
+                fontSize: '11px',
+                cursor: 'pointer'
               }}
-              title="Duplicate Clip"
+              title={t('editor.duplicate', 'Duplicate')}
             >
-              <Copy size={13} />
-              <span>Duplicate</span>
+              <Copy size={14} />
+              <span>{t('editor.duplicate')}</span>
             </button>
 
             <button
@@ -1155,18 +1936,22 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '4px',
-                padding: '4px 8px',
+                padding: isMobile ? '6px 12px' : '4px 8px',
+                minHeight: isMobile ? '44px' : 'auto',
+                minWidth: isMobile ? '44px' : 'auto',
                 borderRadius: '6px',
                 backgroundColor: '#1e2130',
                 border: '1px solid #2e3448',
                 color: selectedClip ? '#f87171' : '#64748b',
-                fontSize: '11px'
+                fontSize: '11px',
+                cursor: 'pointer'
               }}
-              title="Ripple Delete"
+              title={t('editor.rippleDelete', 'Ripple Delete')}
             >
-              <Trash2 size={13} />
-              <span>Ripple Del</span>
+              <Trash2 size={14} />
+              <span>{t('editor.rippleDelete')}</span>
             </button>
 
             <div style={{ width: '1px', height: '16px', backgroundColor: '#2e3448', margin: '0 4px' }} />
@@ -1176,16 +1961,19 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '4px',
-                padding: '4px 8px',
+                padding: isMobile ? '6px 12px' : '4px 8px',
+                minHeight: isMobile ? '40px' : 'auto',
                 borderRadius: '6px',
                 backgroundColor: '#1e2130',
                 border: '1px solid #2e3448',
                 color: '#fbbf24',
-                fontSize: '11px'
+                fontSize: '11px',
+                fontWeight: 600
               }}
             >
-              <Type size={13} />
+              <Type size={14} />
               <span>+ Text (Khmer)</span>
             </button>
 
@@ -1194,8 +1982,10 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '3px',
-                padding: '4px 8px',
+                padding: isMobile ? '6px 10px' : '4px 8px',
+                minHeight: isMobile ? '40px' : 'auto',
                 borderRadius: '6px',
                 backgroundColor: '#1e2130',
                 border: '1px solid #2e3448',
@@ -1203,7 +1993,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 fontSize: '11px'
               }}
             >
-              <Volume2 size={13} />
+              <Volume2 size={14} />
               <span>SFX Whoosh</span>
             </button>
 
@@ -1212,8 +2002,10 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '3px',
-                padding: '4px 8px',
+                padding: isMobile ? '6px 10px' : '4px 8px',
+                minHeight: isMobile ? '40px' : 'auto',
                 borderRadius: '6px',
                 backgroundColor: '#1e2130',
                 border: '1px solid #2e3448',
@@ -1221,8 +2013,269 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 fontSize: '11px'
               }}
             >
-              <Volume2 size={13} />
+              <Volume2 size={14} />
               <span>SFX Ding</span>
+            </button>
+
+            <button
+              onClick={handleAddMusic}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '3px',
+                padding: isMobile ? '6px 10px' : '4px 8px',
+                minHeight: isMobile ? '40px' : 'auto',
+                borderRadius: '6px',
+                backgroundColor: '#1e2130',
+                border: '1px solid #2e3448',
+                color: '#34d399',
+                fontSize: '11px',
+                cursor: 'pointer'
+              }}
+            >
+              <Music size={14} />
+              <span>+ Music</span>
+            </button>
+
+            <div style={{ width: '1px', height: '16px', backgroundColor: '#2e3448', margin: '0 4px' }} />
+
+            {/* Partial AI Edit Button */}
+            <button
+              onClick={() => {
+                if (!selectedClipId && videoClips.length > 0) {
+                  setSelectedClipId(videoClips[0].id);
+                }
+                setIsPartialEditOpen(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                padding: isMobile ? '6px 10px' : '4px 8px',
+                minHeight: isMobile ? '40px' : 'auto',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                border: '1px solid rgba(167, 139, 250, 0.4)',
+                color: '#c4b5fd',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title={t('autocut.partialEdit')}
+            >
+              <Wand2 size={13} />
+              <span>{t('autocut.partialEdit')}</span>
+            </button>
+
+            {/* Quick Fix Dropdown Menu */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setIsQuickFixMenuOpen(!isQuickFixMenuOpen)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  padding: isMobile ? '6px 10px' : '4px 8px',
+                  minHeight: isMobile ? '40px' : 'auto',
+                  borderRadius: '6px',
+                  backgroundColor: isQuickFixMenuOpen ? '#3730a3' : '#1e2130',
+                  border: isQuickFixMenuOpen ? '1px solid #6366f1' : '1px solid #2e3448',
+                  color: isQuickFixMenuOpen ? '#ffffff' : '#818cf8',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+                title={t('autocut.quickFixTitle')}
+              >
+                <Sparkles size={13} />
+                <span>{t('autocut.quickFixTitle')}</span>
+              </button>
+
+              {isQuickFixMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: 0,
+                  marginBottom: '8px',
+                  backgroundColor: '#181b28',
+                  border: '1px solid #2f364f',
+                  borderRadius: '10px',
+                  padding: '6px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  minWidth: '190px',
+                  zIndex: 80,
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.6)'
+                }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', padding: '4px 8px' }}>
+                    {t('autocut.quickFixTitle')}
+                  </div>
+                  <button
+                    onClick={() => handleQuickFix('silence')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
+                      color: '#cbd5e1',
+                      fontSize: '11px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      border: 'none'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#252a3d')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <Scissors size={13} color="#38bdf8" />
+                    <span>{t('autocut.removeSilence')}</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickFix('captions')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
+                      color: '#cbd5e1',
+                      fontSize: '11px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      border: 'none'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#252a3d')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <Type size={13} color="#fbbf24" />
+                    <span>{t('autocut.fixCaptions')}</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickFix('sfx')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
+                      color: '#cbd5e1',
+                      fontSize: '11px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      border: 'none'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#252a3d')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <Volume2 size={13} color="#c084fc" />
+                    <span>{t('autocut.swapSfx')}</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickFix('music')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
+                      color: '#cbd5e1',
+                      fontSize: '11px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      border: 'none'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#252a3d')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <Music size={13} color="#34d399" />
+                    <span>{t('autocut.changeMusic')}</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickFix('pacing')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
+                      color: '#cbd5e1',
+                      fontSize: '11px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      border: 'none'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#252a3d')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <Sliders size={13} color="#f472b6" />
+                    <span>{t('autocut.changePacing')}</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickFix('aspect')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
+                      color: '#cbd5e1',
+                      fontSize: '11px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      border: 'none'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#252a3d')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <Maximize2 size={13} color="#a78bfa" />
+                    <span>{t('autocut.changeAspect')}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Version History Button */}
+            <button
+              onClick={() => setIsVersionHistoryOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                padding: isMobile ? '6px 10px' : '4px 8px',
+                minHeight: isMobile ? '40px' : 'auto',
+                borderRadius: '6px',
+                backgroundColor: '#1e2130',
+                border: '1px solid #2e3448',
+                color: '#cbd5e1',
+                fontSize: '11px',
+                cursor: 'pointer'
+              }}
+              title={t('autocut.versionHistory')}
+            >
+              <History size={13} color="#818cf8" />
+              <span>{t('autocut.versionHistory')}</span>
+              {historySnapshots.length > 0 && (
+                <span style={{
+                  fontSize: '9px',
+                  backgroundColor: '#3730a3',
+                  color: '#e0e7ff',
+                  padding: '1px 5px',
+                  borderRadius: '10px'
+                }}>
+                  {historySnapshots.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -1519,6 +2572,99 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
                 </div>
               ))}
             </div>
+
+            {/* Music / Audio Track */}
+            <div style={{ height: '36px', backgroundColor: 'rgba(255,255,255,0.02)', position: 'relative' }}>
+              <div style={{ position: 'absolute', left: '6px', top: '10px', fontSize: '10px', color: '#475569', fontWeight: 700 }}>
+                MUSIC
+              </div>
+              {musicClips.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedClipId(c.id);
+                    setIsInspectorOpen(true);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: `${c.start * zoom}px`,
+                    width: `${Math.max(20, (c.end - c.start) * zoom)}px`,
+                    top: '4px',
+                    height: '28px',
+                    borderRadius: '6px',
+                    backgroundColor: selectedClipId === c.id ? '#047857' : '#14382c',
+                    border: selectedClipId === c.id ? '2px solid #34d399' : '1px solid #1f5a45',
+                    color: '#a7f3d0',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '0 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {/* Left Trim Handle */}
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setResizing({
+                        clipId: c.id,
+                        edge: 'left',
+                        initialX: e.clientX,
+                        initialStart: c.start,
+                        initialEnd: c.end
+                      });
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: '6px',
+                      cursor: 'ew-resize',
+                      backgroundColor: 'rgba(255,255,255,0.25)'
+                    }}
+                    title="Drag to trim start"
+                  />
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                    <Music size={12} color="#34d399" />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {c.title}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '9px', opacity: 0.7, fontFamily: 'monospace' }}>
+                    {(c.end - c.start).toFixed(1)}s
+                  </span>
+
+                  {/* Right Trim Handle */}
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setResizing({
+                        clipId: c.id,
+                        edge: 'right',
+                        initialX: e.clientX,
+                        initialStart: c.start,
+                        initialEnd: c.end
+                      });
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: '6px',
+                      cursor: 'ew-resize',
+                      backgroundColor: 'rgba(255,255,255,0.25)'
+                    }}
+                    title="Drag to trim end"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1527,7 +2673,31 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
       <AutoCutModal
         isOpen={isAutoCutOpen}
         onClose={() => setIsAutoCutOpen(false)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onApply={handleApplyAutoCut}
+      />
+
+      <PartialEditModal
+        isOpen={isPartialEditOpen}
+        selectedClip={selectedClip || videoClips[0] || null}
+        onClose={() => setIsPartialEditOpen(false)}
+        onApplyPartialEdit={handleApplyPartialEdit}
+      />
+
+      <VersionHistoryModal
+        isOpen={isVersionHistoryOpen}
+        snapshots={historySnapshots}
+        currentSnapshotId={currentSnapshotId || undefined}
+        onRestore={handleRestoreSnapshot}
+        onClose={() => setIsVersionHistoryOpen(false)}
+      />
+
+      <RegenerateModal
+        isOpen={isRegenerateOpen}
+        onClose={() => setIsRegenerateOpen(false)}
+        onRegenerate={() => {
+          setIsAutoCutOpen(true);
+        }}
       />
 
       <SettingsModal

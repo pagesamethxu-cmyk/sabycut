@@ -1,16 +1,24 @@
 {
   "short_name": "SABYCUT",
   "name": "SABYCUT Video Editor",
+  "description": "CapCut-style Video Editor with AI Auto Cut for Mobile, PWA, Android, and iOS",
   "icons": [
     {
       "src": "/favicon.svg",
       "type": "image/svg+xml",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",
-  "background_color": "#0c0d12",
-  "theme_color": "#4f46e5",
+  "scope": "/",
+  "background_color": "#0a0b10",
+  "theme_color": "#0a0b10",
   "display": "standalone",
-  "orientation": "any"
+  "orientation": "any",
+  "categories": [
+    "multimedia",
+    "productivity",
+    "video"
+  ]
 }

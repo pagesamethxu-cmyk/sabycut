@@ -1,29 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Scissors, 
-  Globe, 
-  User as UserIcon, 
-  LogOut, 
   Settings as SettingsIcon, 
-  FolderPlus, 
-  Sparkles, 
   Film, 
-  ShieldCheck, 
-  Smartphone,
-  CheckCircle,
-  AlertCircle
+  Sparkles,
+  Plus,
+  User as UserIcon,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
-import { initI18n, setLanguage, t, SupportedLanguage } from './i18n';
+import { initI18n, t, SupportedLanguage } from './i18n';
 import { api, setAuthToken, clearAuthToken, getAuthToken } from './services/api';
 import { User } from './types';
 import { EditorStudio } from './components/editor/EditorStudio';
 import { AutoCutModal, AutoCutResult } from './components/autocut/AutoCutModal';
-import { SettingsModal } from './components/settings/SettingsModal';
-import { useIsMobile } from './hooks/useIsMobile';
+import { SettingsPage, SettingsSection } from './components/settings/SettingsPage';
+import { RecentProjects } from './components/home/RecentProjects';
+import { AiKeyRequiredModal } from './components/autocut/AiKeyRequiredModal';
+import { SafeAreaDebugOverlay } from './components/common/SafeAreaDebugOverlay';
 
 export function App() {
-  const isMobile = useIsMobile();
-  const [lang, setLang] = useState<SupportedLanguage>('km');
   const [isI18nReady, setIsI18nReady] = useState(false);
 
   const [user, setUser] = useState<User | null>(null);
@@ -32,11 +28,16 @@ export function App() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'editor'>('dashboard');
   const [initialAutoCutResult, setInitialAutoCutResult] = useState<AutoCutResult | null>(null);
 
-  // Global modals
+  // Global modals and panels
   const [isAutoCutOpen, setIsAutoCutOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('account');
+  const [isAiKeyRequiredOpen, setIsAiKeyRequiredOpen] = useState(false);
 
-  // Form states
+  // Debug overlay
+  const [safeAreaDebug, setSafeAreaDebug] = useState(() => localStorage.getItem('sabycut_debug_safe_areas') === 'true');
+
+  // Form states for auth
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,7 +47,6 @@ export function App() {
   useEffect(() => {
     const savedLang = (localStorage.getItem('sabycut_lang') as SupportedLanguage) || 'km';
     initI18n(savedLang).then(() => {
-      setLang(savedLang);
       setIsI18nReady(true);
     });
 
@@ -55,12 +55,43 @@ export function App() {
         .then((userData) => setUser(userData))
         .catch(() => clearAuthToken());
     }
+
+    const handleDebugChanged = (e: Event) => {
+      const custom = e as CustomEvent<boolean>;
+      setSafeAreaDebug(Boolean(custom.detail));
+    };
+    window.addEventListener('sabycut_safe_area_debug_changed', handleDebugChanged);
+    return () => {
+      window.removeEventListener('sabycut_safe_area_debug_changed', handleDebugChanged);
+    };
   }, []);
 
-  const handleLanguageToggle = async () => {
-    const nextLang: SupportedLanguage = lang === 'km' ? 'en' : 'km';
-    await setLanguage(nextLang);
-    setLang(nextLang);
+  const hasSavedAiKey = (): boolean => {
+    try {
+      const rawVault = localStorage.getItem('sabycut_vault_keys');
+      if (rawVault) {
+        const parsed = JSON.parse(rawVault);
+        if (Array.isArray(parsed) && parsed.length > 0) return true;
+      }
+      const gemini = localStorage.getItem('sabycut_gemini_key') || localStorage.getItem('sabycut_gemini_lastfour');
+      const openai = localStorage.getItem('sabycut_openai_key') || localStorage.getItem('sabycut_openai_lastfour');
+      return Boolean((gemini && gemini.trim().length > 0) || (openai && openai.trim().length > 0));
+    } catch {
+      return false;
+    }
+  };
+
+  const handleAutoCutClick = () => {
+    if (hasSavedAiKey()) {
+      setIsAutoCutOpen(true);
+    } else {
+      setIsAiKeyRequiredOpen(true);
+    }
+  };
+
+  const handleOpenSettings = (section: SettingsSection = 'account') => {
+    setSettingsSection(section);
+    setIsSettingsOpen(true);
   };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -90,15 +121,17 @@ export function App() {
     }
   };
 
-  const handleLogout = () => {
-    clearAuthToken();
-    setUser(null);
-  };
-
   if (!isI18nReady) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-        <span>Loading SABYCUT...</span>
+      <div style={{
+        display: 'flex',
+        height: 'var(--app-height, 100dvh)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#0a0b10',
+        color: '#ffffff'
+      }}>
+        <span>Loading...</span>
       </div>
     );
   }
@@ -117,535 +150,248 @@ export function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0a0b10' }}>
-      {/* Top Navigation */}
-      <header style={{
-        height: isMobile ? 'auto' : '56px',
-        paddingTop: isMobile ? 'max(env(safe-area-inset-top, 0px), 12px)' : '0px',
-        paddingBottom: isMobile ? '12px' : '0px',
-        paddingLeft: '16px',
-        paddingRight: '16px',
-        backgroundColor: '#12141c',
-        borderBottom: '1px solid #232738',
+    <div
+      data-testid="app-root"
+      style={{
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        flexDirection: 'column',
+        height: 'var(--app-height, 100dvh)',
+        backgroundColor: '#0a0b10',
+        overflow: 'hidden'
+      }}
+    >
+      {/* Safe Area Boundaries Debug Overlay */}
+      <SafeAreaDebugOverlay enabled={safeAreaDebug} />
+
+      {/* Top Header with Safe Area Handling */}
+      <header
+        data-testid="app-header"
+        style={{
+          height: 'calc(56px + var(--sat, env(safe-area-inset-top, 0px)))',
+          paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))',
+          paddingLeft: 'max(var(--sal, env(safe-area-inset-left, 0px)), 16px)',
+          paddingRight: 'max(var(--sar, env(safe-area-inset-right, 0px)), 16px)',
+          backgroundColor: '#12141c',
+          borderBottom: '1px solid #232738',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          zIndex: 30,
+          boxSizing: 'border-box'
+        }}
+      >
+        {/* Brand / Logo and App Name on the left */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
           <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
+            width: '34px',
+            height: '34px',
+            borderRadius: '10px',
             backgroundColor: '#4f46e5',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            flexShrink: 0
           }}>
             <Scissors size={18} color="#ffffff" />
           </div>
-          <div>
-            <span style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.5px' }}>
-              SABYCUT
-            </span>
-            {!isMobile && (
-              <span style={{
-                marginLeft: '8px',
-                fontSize: '10px',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                color: '#818cf8',
-                border: '1px solid rgba(99, 102, 241, 0.3)',
-                fontWeight: 600
-              }}>
-                Core Engine
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Header Right Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {!isMobile && (
-            <>
-              {/* Open Editor Studio Directly */}
-              <button
-                onClick={() => setCurrentView('editor')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  backgroundColor: '#4f46e5',
-                  color: '#ffffff',
-                  fontSize: '12px',
-                  fontWeight: 700
-                }}
-              >
-                <Film size={14} />
-                <span>{t('nav.newProject')}</span>
-              </button>
-
-              {/* AI Auto Cut Button */}
-              <button
-                onClick={() => setIsAutoCutOpen(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  backgroundColor: 'rgba(167, 139, 250, 0.15)',
-                  border: '1px solid rgba(167, 139, 250, 0.4)',
-                  color: '#c4b5fd',
-                  fontSize: '12px',
-                  fontWeight: 700
-                }}
-              >
-                <Sparkles size={14} />
-                <span>{t('nav.autoCut')}</span>
-              </button>
-            </>
-          )}
-
-          {/* Settings Button */}
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            title={t('nav.settings')}
+          <span
+            data-testid="app-brand-title"
             style={{
-              padding: '7px',
-              borderRadius: '8px',
-              backgroundColor: '#1b1d28',
-              border: '1px solid #2a2f42',
-              color: '#cbd5e1'
+              fontSize: '18px',
+              fontWeight: 800,
+              color: '#ffffff',
+              letterSpacing: '-0.5px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}
           >
-            <SettingsIcon size={14} />
-          </button>
+            {t('app.title')}
+          </span>
+        </div>
 
-          {/* Language Toggle */}
+        {/* Settings Icon Button on the right */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <button
-            onClick={handleLanguageToggle}
+            onClick={() => handleOpenSettings('account')}
+            data-testid="settings-header-btn"
+            title={t('nav.settings')}
+            aria-label={t('nav.settings')}
+            className="touch-target"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 10px',
-              borderRadius: '8px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '10px',
               backgroundColor: '#1b1d28',
               border: '1px solid #2a2f42',
               color: '#cbd5e1',
-              fontSize: '12px',
-              fontWeight: 600
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'background-color 0.15s'
             }}
           >
-            <Globe size={13} color="#818cf8" />
-            <span>{lang === 'km' ? 'ខ្មែរ' : 'EN'}</span>
+            <SettingsIcon size={18} />
           </button>
-
-          {/* User Status / Login Button */}
-          {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {!isMobile && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1b1d28',
-                  border: '1px solid #2a2f42',
-                  color: '#e2e8f0',
-                  fontSize: '12px'
-                }}>
-                  <UserIcon size={14} color="#34d399" />
-                  <span>{user.username}</span>
-                </div>
-              )}
-              <button
-                onClick={handleLogout}
-                title={t('auth.logout')}
-                style={{
-                  padding: '7px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1b1d28',
-                  border: '1px solid #2a2f42',
-                  color: '#f87171'
-                }}
-              >
-                <LogOut size={14} />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setStatusMessage(null);
-                setShowAuthModal(true);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '6px 10px',
-                borderRadius: '8px',
-                backgroundColor: '#1b1d28',
-                border: '1px solid #2a2f42',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: 600
-              }}
-            >
-              <UserIcon size={14} />
-              {!isMobile && <span>{t('auth.login')}</span>}
-            </button>
-          )}
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: isMobile ? '16px' : '30px 20px',
-        maxWidth: '1100px',
-        margin: '0 auto',
-        width: '100%',
-        paddingBottom: isMobile ? 'max(env(safe-area-inset-bottom, 0px), 24px)' : '30px'
-      }}>
-        {isMobile ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Big Blue CapCut Style "New Project" Hero Button */}
-            <div
-              onClick={() => setCurrentView('editor')}
-              style={{
-                backgroundColor: '#4f46e5',
-                borderRadius: '20px',
-                padding: '30px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                cursor: 'pointer',
-                boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)',
-                textAlign: 'center'
-              }}
-            >
-              <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '16px',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Film size={32} color="#ffffff" />
-              </div>
-              <div>
-                <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
-                  {t('nav.newProject')}
-                </h2>
-                <p style={{ fontSize: '12px', color: '#c7d2fe', marginTop: '4px' }}>
-                  {lang === 'km' ? 'ចុចទីនេះដើម្បីចាប់ផ្ដើមកាត់តវីដេអូ' : 'Tap to start editing your video'}
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Actions Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div
-                onClick={() => setIsAutoCutOpen(true)}
-                style={{
-                  backgroundColor: '#161926',
-                  border: '1px solid #282f47',
-                  borderRadius: '16px',
-                  padding: '16px 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  cursor: 'pointer'
-                }}
-              >
-                <div style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
-                  backgroundColor: 'rgba(167, 139, 250, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Sparkles size={20} color="#a78bfa" />
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
-                    {t('autocut.title')}
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                    Auto Cut AI
-                  </div>
-                </div>
-              </div>
-
-              <div
-                onClick={() => setIsSettingsOpen(true)}
-                style={{
-                  backgroundColor: '#161926',
-                  border: '1px solid #282f47',
-                  borderRadius: '16px',
-                  padding: '16px 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  cursor: 'pointer'
-                }}
-              >
-                <div style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
-                  backgroundColor: 'rgba(52, 211, 153, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <SettingsIcon size={20} color="#34d399" />
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
-                    {t('settings.title')}
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                    API Keys
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Architecture Highlights Pill */}
-            <div style={{
-              backgroundColor: '#12141d',
-              border: '1px solid #222638',
-              borderRadius: '14px',
-              padding: '14px',
+      <main
+        data-testid="home-main-content"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          paddingTop: '20px',
+          paddingBottom: 'calc(var(--sab, env(safe-area-inset-bottom, 0px)) + 24px)',
+          paddingLeft: 'max(var(--sal, env(safe-area-inset-left, 0px)), 16px)',
+          paddingRight: 'max(var(--sar, env(safe-area-inset-right, 0px)), 16px)',
+          maxWidth: '1080px',
+          margin: '0 auto',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}
+      >
+        {/* Primary Actions: New Project and AI Auto Cut side by side in ONE ROW */}
+        <section
+          data-testid="primary-actions-section"
+          className="primary-actions-row"
+        >
+          {/* Card Button 1: New Project */}
+          <button
+            type="button"
+            data-testid="action-new-project-btn"
+            onClick={() => setCurrentView('editor')}
+            className="touch-target"
+            style={{
+              minHeight: '120px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+              border: '1px solid rgba(165, 180, 252, 0.3)',
+              boxShadow: '0 8px 24px -4px rgba(79, 70, 229, 0.4)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#94a3b8' }}>
-                <ShieldCheck size={14} color="#34d399" />
-                <span>Spring Boot Core (Java 21)</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#94a3b8' }}>
-                <Sparkles size={14} color="#a78bfa" />
-                <span>HarfBuzz Khmer Subtitle Shaping</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#94a3b8' }}>
-                <Smartphone size={14} color="#38bdf8" />
-                <span>iOS Native App Package (SABYCUT.ipa)</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Welcome Section */}
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              padding: '16px',
+              cursor: 'pointer',
+              transition: 'transform 0.15s, box-shadow 0.15s',
+              boxSizing: 'border-box'
+            }}
+          >
             <div style={{
-              backgroundColor: '#13151f',
-              borderRadius: '16px',
-              border: '1px solid #23273a',
-              padding: '28px',
-              marginBottom: '24px'
+              width: '46px',
+              height: '46px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff'
             }}>
-              <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', marginBottom: '8px' }}>
-                {t('app.title')}
-              </h1>
-              <p style={{ fontSize: '14px', color: '#94a3b8', lineHeight: '1.6' }}>
-                {t('app.subtitle')}
-              </p>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '20px' }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1a1d2b',
-                  border: '1px solid #292e44',
-                  fontSize: '12px',
-                  color: '#cbd5e1'
-                }}>
-                  <ShieldCheck size={16} color="#34d399" />
-                  <span>Backend Core: Spring Boot (Java 21)</span>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1a1d2b',
-                  border: '1px solid #292e44',
-                  fontSize: '12px',
-                  color: '#cbd5e1'
-                }}>
-                  <Sparkles size={16} color="#a78bfa" />
-                  <span>AI Service: Flask + PySceneDetect + Whisper</span>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  backgroundColor: '#1a1d2b',
-                  border: '1px solid #292e44',
-                  fontSize: '12px',
-                  color: '#cbd5e1'
-                }}>
-                  <Smartphone size={16} color="#38bdf8" />
-                  <span>Packaging: PWA + Capacitor (Android / iOS)</span>
-                </div>
-              </div>
+              <Film size={26} />
             </div>
+            <span style={{
+              fontSize: '15px',
+              fontWeight: 700,
+              color: '#ffffff',
+              letterSpacing: '-0.2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '100%'
+            }}>
+              {t('nav.newProject')}
+            </span>
+          </button>
 
-            {/* Feature Cards Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-              {/* Card 1: Project Creator -> Opens EditorStudio */}
-              <div style={{
-                backgroundColor: '#13151f',
-                borderRadius: '14px',
-                border: '1px solid #23273a',
-                padding: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <FolderPlus size={20} color="#818cf8" />
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
-                    {t('nav.newProject')}
-                  </h3>
-                </div>
-                <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
-                  {t('editor.tracks')} - Multi-track timeline (Video, Audio, SFX, Text/Captions).
-                </p>
-                <button
-                  onClick={() => setCurrentView('editor')}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    backgroundColor: '#4f46e5',
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <Film size={16} />
-                  <span>{t('nav.newProject')} (Open Editor)</span>
-                </button>
-              </div>
-
-              {/* Card 2: AI Auto Cut -> Opens AutoCutModal */}
-              <div style={{
-                backgroundColor: '#13151f',
-                borderRadius: '14px',
-                border: '1px solid #23273a',
-                padding: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <Sparkles size={20} color="#a78bfa" />
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
-                    {t('autocut.title')}
-                  </h3>
-                </div>
-                <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
-                  {t('autocut.description')}
-                </p>
-                <button
-                  onClick={() => setIsAutoCutOpen(true)}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    backgroundColor: '#1f2233',
-                    border: '1px solid #323852',
-                    color: '#cbd5e1',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <Sparkles size={16} color="#a78bfa" />
-                  <span>{t('autocut.selectForm')}</span>
-                </button>
-              </div>
-
-              {/* Card 3: Encrypted Vault Settings -> Opens SettingsModal */}
-              <div style={{
-                backgroundColor: '#13151f',
-                borderRadius: '14px',
-                border: '1px solid #23273a',
-                padding: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <SettingsIcon size={20} color="#34d399" />
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
-                    {t('settings.apiKeyTitle')}
-                  </h3>
-                </div>
-                <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
-                  {t('settings.apiKeyDesc')}
-                </p>
-                <button
-                  onClick={() => setIsSettingsOpen(true)}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    backgroundColor: '#1f2233',
-                    border: '1px solid #323852',
-                    color: '#cbd5e1',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <SettingsIcon size={16} color="#34d399" />
-                  <span>{t('settings.title')}</span>
-                </button>
-              </div>
+          {/* Card Button 2: AI Auto Cut */}
+          <button
+            type="button"
+            data-testid="action-auto-cut-btn"
+            onClick={handleAutoCutClick}
+            className="touch-target"
+            style={{
+              minHeight: '120px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #20183b 0%, #2e1065 100%)',
+              border: '1px solid rgba(168, 85, 247, 0.45)',
+              boxShadow: '0 8px 24px -4px rgba(168, 85, 247, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              padding: '16px',
+              cursor: 'pointer',
+              transition: 'transform 0.15s, box-shadow 0.15s',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(168, 85, 247, 0.25)',
+              border: '1px solid rgba(168, 85, 247, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#c4b5fd'
+            }}>
+              <Sparkles size={26} />
             </div>
-          </>
-        )}
+            <span style={{
+              fontSize: '15px',
+              fontWeight: 700,
+              color: '#ffffff',
+              letterSpacing: '-0.2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '100%'
+            }}>
+              {t('nav.autoCut')}
+            </span>
+          </button>
+        </section>
+
+        {/* Below the buttons: Recent Projects Grid and Empty State */}
+        <RecentProjects
+          onOpenProject={(_id) => setCurrentView('editor')}
+          onNewProject={() => setCurrentView('editor')}
+        />
       </main>
 
+      {/* Global Modals & Pages */}
+      <SettingsPage
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        initialSection={settingsSection}
+        onSafeAreaDebugChange={setSafeAreaDebug}
+        user={user}
+        onUserChange={setUser}
+        onOpenAuth={() => setShowAuthModal(true)}
+      />
 
-      {/* Global Modals */}
+      <AiKeyRequiredModal
+        isOpen={isAiKeyRequiredOpen}
+        onClose={() => setIsAiKeyRequiredOpen(false)}
+        onOpenSettings={() => handleOpenSettings('aiProvider')}
+      />
+
       <AutoCutModal
         isOpen={isAutoCutOpen}
         onClose={() => setIsAutoCutOpen(false)}
+        onOpenSettings={() => handleOpenSettings('aiProvider')}
         onApply={(result) => {
           setInitialAutoCutResult(result);
           setIsAutoCutOpen(false);
           setCurrentView('editor');
         }}
-      />
-
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
       />
 
       {/* Auth Modal */}
@@ -657,7 +403,7 @@ export function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 50,
+          zIndex: 90,
           padding: '16px'
         }}>
           <div style={{
@@ -769,7 +515,8 @@ export function App() {
                   backgroundColor: '#4f46e5',
                   color: '#ffffff',
                   fontSize: '13px',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  cursor: 'pointer'
                 }}
               >
                 {isSubmitting ? t('common.loading') : authMode === 'login' ? t('auth.login') : t('auth.register')}
@@ -779,6 +526,7 @@ export function App() {
             {/* Guest / Bypass Option */}
             <div style={{ marginTop: '12px', textAlign: 'center' }}>
               <button
+                type="button"
                 onClick={() => {
                   setUser({ id: 'guest', username: 'Guest', email: 'guest@sabycut.local', role: 'ROLE_USER' });
                   setShowAuthModal(false);
@@ -787,7 +535,8 @@ export function App() {
                   background: 'none',
                   color: '#a5b4fc',
                   fontSize: '12px',
-                  textDecoration: 'underline'
+                  textDecoration: 'underline',
+                  cursor: 'pointer'
                 }}
               >
                 {t('auth.guestMode')}
@@ -826,8 +575,9 @@ export function App() {
 
             <div style={{ marginTop: '12px', textAlign: 'center' }}>
               <button
+                type="button"
                 onClick={() => setShowAuthModal(false)}
-                style={{ background: 'none', color: '#64748b', fontSize: '12px' }}
+                style={{ background: 'none', color: '#64748b', fontSize: '12px', cursor: 'pointer' }}
               >
                 {t('common.cancel')}
               </button>

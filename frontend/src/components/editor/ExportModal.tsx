@@ -105,7 +105,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 110,
-      padding: '16px'
+      paddingTop: 'max(var(--sat, 0px), 16px)',
+      paddingBottom: 'max(var(--sab, 0px), 16px)',
+      paddingLeft: 'max(var(--sal, 0px), 16px)',
+      paddingRight: 'max(var(--sar, 0px), 16px)'
     }}>
       <div style={{
         backgroundColor: '#12141d',
@@ -113,6 +116,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         borderRadius: '16px',
         width: '100%',
         maxWidth: '560px',
+        maxHeight: 'calc(var(--app-height, 100dvh) - var(--sat, 0px) - var(--sab, 0px) - 32px)',
+        overflowY: 'auto',
+        boxSizing: 'border-box',
         padding: '24px',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
       }}>
@@ -132,14 +138,26 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
             <div>
               <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#ffffff' }}>
-                {t('export.title')} (ទាញយកវីដេអូសម្រេច)
+                {t('export.title', 'Export Video')} (ទាញយកវីដេអូសម្រេច)
               </h2>
               <p style={{ fontSize: '11px', color: '#94a3b8' }}>
-                CapCut-quality rendering with Khmer HarfBuzz font shaping & audio ducking
+                High-fidelity rendering with Khmer HarfBuzz font shaping & audio ducking
               </p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', color: '#94a3b8', padding: '4px' }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              color: '#94a3b8',
+              minWidth: '44px',
+              minHeight: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title={t('common.cancel')}
+          >
             <X size={18} />
           </button>
         </div>

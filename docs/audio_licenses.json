@@ -1,0 +1,62 @@
+[
+  {
+    "id": "sfx_whoosh_01",
+    "name": "Fast Cinematic Whoosh",
+    "category": "transitions",
+    "tags": ["whoosh", "fast", "swoosh", "transition"],
+    "duration": 0.5,
+    "license": "Creative Commons Zero (CC0) 1.0 Universal",
+    "attribution": "Public Domain / SABYCUT Synthesized Library",
+    "sourceUrl": "internal://sabycut/audio/sfx_whoosh.wav"
+  },
+  {
+    "id": "sfx_ding_01",
+    "name": "Clean Bell Ding",
+    "category": "alerts",
+    "tags": ["ding", "bell", "notification", "click", "pop"],
+    "duration": 0.8,
+    "license": "Creative Commons Zero (CC0) 1.0 Universal",
+    "attribution": "Public Domain / SABYCUT Synthesized Library",
+    "sourceUrl": "internal://sabycut/audio/sfx_ding.wav"
+  },
+  {
+    "id": "sfx_bassdrop_01",
+    "name": "Sub-Bass Drop Impact",
+    "category": "impacts",
+    "tags": ["impact", "bass", "drop", "riser", "boom"],
+    "duration": 1.8,
+    "license": "Creative Commons Zero (CC0) 1.0 Universal",
+    "attribution": "Public Domain / SABYCUT Synthesized Library",
+    "sourceUrl": "internal://sabycut/audio/sfx_bassdrop.wav"
+  },
+  {
+    "id": "sfx_pop_click_01",
+    "name": "UI Soft Click and Pop",
+    "category": "interface",
+    "tags": ["click", "pop", "tap", "interface"],
+    "duration": 0.15,
+    "license": "Creative Commons Zero (CC0) 1.0 Universal",
+    "attribution": "Public Domain / SABYCUT Synthesized Library",
+    "sourceUrl": "internal://sabycut/audio/sfx_click.wav"
+  },
+  {
+    "id": "sfx_riser_01",
+    "name": "Tension Pitch Riser",
+    "category": "transitions",
+    "tags": ["riser", "tension", "build", "transition"],
+    "duration": 2.5,
+    "license": "Creative Commons Zero (CC0) 1.0 Universal",
+    "attribution": "Public Domain / SABYCUT Synthesized Library",
+    "sourceUrl": "internal://sabycut/audio/sfx_riser.wav"
+  },
+  {
+    "id": "music_lofi_chill_01",
+    "name": "Khmer Ambient Lo-Fi Beats",
+    "category": "background",
+    "tags": ["ambience", "chill", "lofi", "beats", "music"],
+    "duration": 60.0,
+    "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "attribution": "SABYCUT Studio Audio Team",
+    "sourceUrl": "internal://sabycut/audio/music_ambient.mp3"
+  }
+]

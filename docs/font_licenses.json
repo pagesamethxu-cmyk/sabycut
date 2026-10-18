@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Noto Sans Khmer",
+    "designer": "Google Typography / Monotype",
+    "license": "SIL Open Font License 1.1 (OFL)",
+    "usage": "Primary UI and default video subtitle typography",
+    "features": ["Full Unicode Khmer support", "Complex consonant clustering", "Coeng subscripts", "Multiple weights 100-900"]
+  },
+  {
+    "name": "Battambang",
+    "designer": "Danh Hong",
+    "license": "SIL Open Font License 1.1 (OFL)",
+    "usage": "Standard legible reading font for documentary and narrative subtitles",
+    "features": ["Classic Khmer book typography", "Distinctive consonant loops", "High legibility at small sizes"]
+  },
+  {
+    "name": "Siemreap",
+    "designer": "Danh Hong",
+    "license": "SIL Open Font License 1.1 (OFL)",
+    "usage": "Traditional decorative headlines and title cards",
+    "features": ["Graceful Khmer serifs", "Traditional proportions", "Optimized for widescreen titles"]
+  },
+  {
+    "name": "Moul",
+    "designer": "Danh Hong",
+    "license": "SIL Open Font License 1.1 (OFL)",
+    "usage": "Heavy display header font for attention-grabbing video hooks",
+    "features": ["Thick calligraphic brush strokes", "High contrast", "Impactful headline presence"]
+  },
+  {
+    "name": "Koulen",
+    "designer": "Danh Hong",
+    "license": "SIL Open Font License 1.1 (OFL)",
+    "usage": "Bold modern headline font for social media clips",
+    "features": ["Geometric sans-serif styling", "Modern Khmer aesthetic", "Excellent contrast on mobile screens"]
+  }
+]
