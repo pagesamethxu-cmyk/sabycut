@@ -1,0 +1,61 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-ipa:
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Web App
+        working-directory: frontend
+        run: npm run build
+
+      - name: Sync Capacitor iOS
+        working-directory: frontend
+        run: npx cap sync ios
+
+      - name: Setup CocoaPods
+        working-directory: frontend/ios/App
+        run: pod install
+
+      - name: Build iOS Archive
+        working-directory: frontend/ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/App.xcarchive \
+            archive \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package Unsigned IPA for Sideloadly
+        run: |
+          mkdir -p Payload
+          cp -r frontend/ios/App/build/App.xcarchive/Products/Applications/App.app Payload/
+          zip -r SABYCUT.ipa Payload
+          rm -rf Payload
+
+      - name: Upload SABYCUT.ipa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SABYCUT-iOS-IPA
+          path: SABYCUT.ipa
+          retention-days: 7

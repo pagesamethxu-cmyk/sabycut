@@ -1,0 +1,74 @@
+{
+  "app": {
+    "title": "SABYCUT",
+    "subtitle": "កម្មវិធីកាត់តវីដេអូ និង Auto Cut ដោយ AI"
+  },
+  "auth": {
+    "login": "ចូលគណនី",
+    "register": "ចុះឈ្មោះ",
+    "logout": "ចាកចេញ",
+    "username": "ឈ្មោះអ្នកប្រើប្រាស់",
+    "email": "អ៊ីមែល",
+    "password": "ពាក្យសម្ងាត់",
+    "loginSuccess": "ចូលគណនីបានជោគជ័យ",
+    "registerSuccess": "ចុះឈ្មោះបានជោគជ័យ",
+    "noAccount": "មិនទាន់មានគណនី?",
+    "haveAccount": "មានគណនីរួចហើយ?",
+    "guestMode": "បន្តក្នុងនាមជាភ្ញៀវ"
+  },
+  "nav": {
+    "projects": "គម្រោងវីដេអូ",
+    "newProject": "គម្រោងថ្មី",
+    "autoCut": "AI Auto Cut",
+    "settings": "ការកំណត់",
+    "export": "នាំចេញវីដេអូ",
+    "language": "ភាសា"
+  },
+  "editor": {
+    "split": "កាត់បំបែក",
+    "delete": "លុប",
+    "trim": "តម្រឹម",
+    "play": "ចាក់",
+    "pause": "ផ្អាក",
+    "undo": "ត្រឡប់ក្រោយ",
+    "redo": "ទៅមុខវិញ",
+    "speed": "ល្បឿន",
+    "volume": "កម្រិតសំឡេង",
+    "addText": "បន្ថែមអត្ថបទ",
+    "addAudio": "បន្ថែមសំឡេង",
+    "addEffect": "បន្ថែមបែបផែន",
+    "tracks": "បន្ទាត់កាត់ត"
+  },
+  "autocut": {
+    "title": "AI Auto Cut",
+    "description": "កាត់តវីដេអូស្វ័យប្រវត្តិតាមទម្រង់ និងការបញ្ជា",
+    "selectForm": "ជ្រើសរើសទម្រង់វីដេអូ",
+    "promptLabel": "ការណែនាំដល់ AI",
+    "promptPlaceholder": "សរសេរការណែនាំនៅទីនេះ (ឧ. កាត់យកតែប្លង់សកម្មភាព បន្ថែមសំឡេង whoosh)",
+    "startBtn": "ចាប់ផ្តើមកាត់តស្វ័យប្រវត្តិ",
+    "stepAnalyzing": "កំពុងវិភាគវីដេអូ",
+    "stepTranscribing": "កំពុងស្រង់អត្ថបទសំឡេង",
+    "stepPlanning": "AI កំពុងរៀបចំប្លង់កាត់ត",
+    "stepBuilding": "កំពុងបង្កើតបន្ទាត់កាត់ត",
+    "completed": "បានបញ្ចប់ការកាត់តស្វ័យប្រវត្តិ",
+    "applyToEditor": "បើកក្នុងផ្ទាំងកែសម្រួល"
+  },
+  "settings": {
+    "title": "ការកំណត់ប្រព័ន្ធ",
+    "apiKeyTitle": "កូនសោ AI API",
+    "apiKeyDesc": "កូនសោត្រូវបានការពារដោយការអ៊ិនគ្រីប AES-256-GCM ក្នុង Server",
+    "provider": "ជ្រើសរើស AI Provider",
+    "apiKeyPlaceholder": "បញ្ចូល API Key (ChatGPT ឬ Gemini)",
+    "saveKey": "រក្សាទុកកូនសោ",
+    "testKey": "សាកល្បងកូនសោ",
+    "keySaved": "បានរក្សាទុកកូនសោដោយជោគជ័យ",
+    "keyVerified": "កូនសោមានសុពលភាព"
+  },
+  "common": {
+    "save": "រក្សាទុក",
+    "cancel": "បោះបង់",
+    "confirm": "យល់ព្រម",
+    "loading": "កំពុងដំណើរការ...",
+    "error": "មានបញ្ហាបានកើតឡើង"
+  }
+}

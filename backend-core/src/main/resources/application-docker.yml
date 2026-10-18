@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/sabycut_db}
+    username: ${SPRING_DATASOURCE_USERNAME:sabycut_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:sabycut_secret}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    baseline-on-migrate: true

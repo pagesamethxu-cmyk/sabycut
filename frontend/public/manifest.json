@@ -1,0 +1,16 @@
+{
+  "short_name": "SABYCUT",
+  "name": "SABYCUT Video Editor",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0c0d12",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "orientation": "any"
+}

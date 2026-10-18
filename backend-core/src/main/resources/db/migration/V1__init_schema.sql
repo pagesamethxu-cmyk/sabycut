@@ -1,0 +1,81 @@
+-- V1__init_schema.sql: Initial database schema for SABYCUT
+
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(36) PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'ROLE_USER',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS encrypted_keys (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider VARCHAR(20) NOT NULL, -- 'OPENAI' or 'GEMINI'
+    encrypted_key TEXT NOT NULL,
+    iv VARCHAR(32) NOT NULL,
+    last_four VARCHAR(4) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_user_provider UNIQUE(user_id, provider)
+);
+
+CREATE TABLE IF NOT EXISTS projects (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    aspect_ratio VARCHAR(10) NOT NULL DEFAULT '9:16',
+    width INT NOT NULL DEFAULT 1080,
+    height INT NOT NULL DEFAULT 1920,
+    fps INT NOT NULL DEFAULT 30,
+    duration_seconds DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    timeline_json TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS video_forms (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    target_aspect_ratio VARCHAR(10) NOT NULL,
+    target_duration_seconds DOUBLE PRECISION NOT NULL,
+    config_json TEXT NOT NULL,
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS assets (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id VARCHAR(36) REFERENCES projects(id) ON DELETE SET NULL,
+    filename VARCHAR(255) NOT NULL,
+    content_type VARCHAR(100) NOT NULL,
+    s3_key VARCHAR(255) NOT NULL,
+    file_size_bytes BIGINT NOT NULL,
+    duration_seconds DOUBLE PRECISION,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS jobs (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id VARCHAR(36) REFERENCES projects(id) ON DELETE SET NULL,
+    type VARCHAR(30) NOT NULL, -- 'AUTOCUT', 'EXPORT', 'ANALYSIS'
+    status VARCHAR(30) NOT NULL, -- 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'
+    current_step VARCHAR(50),
+    progress_percentage INT NOT NULL DEFAULT 0,
+    input_params_json TEXT,
+    result_payload_json TEXT,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id);

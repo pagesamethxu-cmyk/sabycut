@@ -1,0 +1,74 @@
+{
+  "app": {
+    "title": "SABYCUT",
+    "subtitle": "CapCut-style Video Editor with AI Auto Cut"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Sign Up",
+    "logout": "Log Out",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "loginSuccess": "Successfully signed in",
+    "registerSuccess": "Account created successfully",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "guestMode": "Continue as Guest"
+  },
+  "nav": {
+    "projects": "Projects",
+    "newProject": "New Project",
+    "autoCut": "AI Auto Cut",
+    "settings": "Settings",
+    "export": "Export Video",
+    "language": "Language"
+  },
+  "editor": {
+    "split": "Split",
+    "delete": "Delete",
+    "trim": "Trim",
+    "play": "Play",
+    "pause": "Pause",
+    "undo": "Undo",
+    "redo": "Redo",
+    "speed": "Speed",
+    "volume": "Volume",
+    "addText": "Add Text",
+    "addAudio": "Add Audio",
+    "addEffect": "Add Effect",
+    "tracks": "Tracks"
+  },
+  "autocut": {
+    "title": "AI Auto Cut",
+    "description": "Automatic video editing based on forms and natural language prompt",
+    "selectForm": "Select Video Form",
+    "promptLabel": "Instructions to AI",
+    "promptPlaceholder": "Type instructions here (e.g. keep active scenes, cut silence, add whoosh)",
+    "startBtn": "Start Auto Cut",
+    "stepAnalyzing": "Analyzing video scenes",
+    "stepTranscribing": "Transcribing speech",
+    "stepPlanning": "AI planning edit decisions",
+    "stepBuilding": "Building timeline tracks",
+    "completed": "Auto Cut completed successfully",
+    "applyToEditor": "Open in Timeline Editor"
+  },
+  "settings": {
+    "title": "Settings",
+    "apiKeyTitle": "AI API Key Vault",
+    "apiKeyDesc": "Keys are encrypted server-side with AES-256-GCM and never logged",
+    "provider": "Select Provider",
+    "apiKeyPlaceholder": "Enter API Key (ChatGPT or Gemini)",
+    "saveKey": "Save Key",
+    "testKey": "Test Key",
+    "keySaved": "Key saved successfully",
+    "keyVerified": "Key is valid"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Processing...",
+    "error": "An error occurred"
+  }
+}

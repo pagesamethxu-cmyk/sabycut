@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/autocut/autocutmodal.tsx","./src/components/editor/clipinspector.tsx","./src/components/editor/editorstudio.tsx","./src/components/editor/exportmodal.tsx","./src/components/settings/settingsmodal.tsx","./src/i18n/index.ts","./src/services/api.ts","./src/services/soundeffects.ts","./src/types/index.ts"],"version":"5.9.3"}
