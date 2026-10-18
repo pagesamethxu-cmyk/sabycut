@@ -13,8 +13,13 @@ public class VaultDtos {
     public record KeyStatusResponse(
         String provider,
         String lastFour,
-        boolean configured
-    ) {}
+        boolean configured,
+        String status
+    ) {
+        public KeyStatusResponse(String provider, String lastFour, boolean configured) {
+            this(provider, lastFour, configured, configured ? "saved" : "not_configured");
+        }
+    }
 
     public record TestKeyRequest(
         @NotBlank @Pattern(regexp = "OPENAI|GEMINI") String provider,

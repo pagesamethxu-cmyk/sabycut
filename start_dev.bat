@@ -13,7 +13,7 @@ echo [2/4] Starting Frontend (Vite on port 3000)...
 start "SABYCUT Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
 
 echo [3/4] Starting AI Service (Python Flask on port 5000)...
-start "SABYCUT AI Service" cmd /k "cd /d %~dp0ai-service && python run.py"
+start "SABYCUT AI Service" cmd /k "cd /d %~dp0ai-service && if exist venv\Scripts\python.exe (venv\Scripts\python.exe run.py) else (python run.py)"
 
 echo [4/4] Starting Backend Core (Spring Boot on port 8080)...
 start "SABYCUT Backend Core" cmd /k "cd /d %~dp0backend-core && mvn spring-boot:run"
@@ -23,6 +23,11 @@ echo All services launched!
 echo - Frontend:    http://localhost:3000
 echo - Backend API: http://localhost:8080
 echo - AI Service:  http://localhost:5000
+echo.
+echo For iPhone connection:
+echo In SABYCUT app -^> Settings -^> Debug:
+echo Set Server URL: http://192.168.1.8:8080
+echo (Ensure iPhone is connected to the same Wi-Fi)
 echo ===================================================
 echo Keep this window open or minimize it. To stop all services, run stop_dev.bat.
 pause
