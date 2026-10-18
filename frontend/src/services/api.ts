@@ -1,6 +1,21 @@
 import { AuthResponse, User } from '../types';
 
-const API_BASE = '/api';
+export function getServerUrl(): string {
+  const custom = localStorage.getItem('sabycut_server_url');
+  if (custom && custom.trim().length > 0) {
+    return custom.trim().replace(/\/+$/, '');
+  }
+  const env = (import.meta as any).env?.VITE_API_BASE_URL;
+  if (env && typeof env === 'string' && env.trim().length > 0) {
+    return env.trim().replace(/\/+$/, '');
+  }
+  return '';
+}
+
+export function getApiBase(): string {
+  const base = getServerUrl();
+  return base ? `${base}/api` : '/api';
+}
 
 export function getAuthToken(): string | null {
   return localStorage.getItem('sabycut_token');
@@ -25,7 +40,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const response = await fetch(`${getApiBase()}${endpoint}`, {
     ...options,
     headers,
   });
@@ -205,12 +220,18 @@ export const api = {
       let pollTimer: ReturnType<typeof setInterval> | null = null;
 
       try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Connect to current host or fallback port 8080
-        const host = window.location.port === '3000' || window.location.port === '5173'
-          ? 'localhost:8080'
-          : window.location.host;
-        const wsUrl = `${protocol}//${host}/ws/autocut`;
+        const base = getServerUrl();
+        let wsUrl: string;
+        if (base) {
+          const wsBase = base.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+          wsUrl = `${wsBase}/ws/autocut`;
+        } else {
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const host = window.location.port === '3000' || window.location.port === '5173'
+            ? 'localhost:8080'
+            : window.location.host;
+          wsUrl = `${protocol}//${host}/ws/autocut`;
+        }
 
         ws = new WebSocket(wsUrl);
 

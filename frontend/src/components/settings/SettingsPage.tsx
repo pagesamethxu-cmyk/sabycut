@@ -91,9 +91,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [exportBitrate, setExportBitrate] = useState(() => localStorage.getItem('sabycut_export_bitrate') || 'high');
   const [exportSavedNotice, setExportSavedNotice] = useState(false);
 
-  // Debug State
   const [safeAreaDebug, setSafeAreaDebug] = useState(() => localStorage.getItem('sabycut_debug_safe_areas') === 'true');
   const [simulatedInset, setSimulatedInset] = useState<string>('none');
+  const [serverUrlInput, setServerUrlInput] = useState(() => localStorage.getItem('sabycut_server_url') || 'http://192.168.1.8:8080');
+  const [serverStatusMsg, setServerStatusMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
   // Load keys on open
   useEffect(() => {
@@ -274,6 +275,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       document.documentElement.style.removeProperty('--sab');
       document.documentElement.style.removeProperty('--sal');
       document.documentElement.style.removeProperty('--sar');
+    }
+  };
+
+  const handleSaveServerUrl = () => {
+    localStorage.setItem('sabycut_server_url', serverUrlInput.trim());
+    setServerStatusMsg({ text: 'បានរក្សាទុកអាសយដ្ឋាន Server', isError: false });
+    setTimeout(() => setServerStatusMsg(null), 3000);
+  };
+
+  const handleTestServerConnection = async () => {
+    setServerStatusMsg(null);
+    try {
+      const url = serverUrlInput.trim() || 'http://192.168.1.8:8080';
+      const res = await fetch(`${url}/api/keys`, { signal: AbortSignal.timeout(3500) });
+      if (res.ok) {
+        setServerStatusMsg({ text: 'ភ្ជាប់ទៅកាន់ Server ដោយជោគជ័យ (Connected)', isError: false });
+      } else {
+        setServerStatusMsg({ text: `Server ឆ្លើយតបកូដ ${res.status}`, isError: true });
+      }
+    } catch (e: any) {
+      setServerStatusMsg({ text: `មិនអាចភ្ជាប់ទៅកាន់ Server បានទេ: ${e.message}`, isError: true });
     }
   };
 
@@ -1465,6 +1487,87 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       }}
                     />
                   </button>
+                </div>
+
+                {/* Mobile / Local Server URL Configuration */}
+                <div style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: '#1b1f30',
+                  border: '1px solid #2c344e',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', marginBottom: '4px' }}>
+                    Server Connection URL (Mobile / Local PC)
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '10px' }}>
+                    Set your computer IP address on Wi-Fi to connect this phone app to the Spring Boot Core and AI Service.
+                  </p>
+
+                  {serverStatusMsg && (
+                    <div style={{
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      marginBottom: '10px',
+                      fontSize: '11px',
+                      backgroundColor: serverStatusMsg.isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(52, 211, 153, 0.15)',
+                      color: serverStatusMsg.isError ? '#f87171' : '#34d399',
+                      border: `1px solid ${serverStatusMsg.isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(52, 211, 153, 0.3)'}`
+                    }}>
+                      {serverStatusMsg.text}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      value={serverUrlInput}
+                      onChange={(e) => setServerUrlInput(e.target.value)}
+                      placeholder="http://192.168.1.8:8080"
+                      style={{
+                        flex: 1,
+                        minWidth: '200px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: '#12141f',
+                        border: '1px solid #2e344a',
+                        color: '#ffffff',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveServerUrl}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        backgroundColor: '#4f46e5',
+                        color: '#ffffff',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        border: 'none'
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTestServerConnection}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        backgroundColor: '#1e2437',
+                        border: '1px solid #333d5c',
+                        color: '#cbd5e1',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Test
+                    </button>
+                  </div>
                 </div>
 
                 {/* Simulated Inset Helpers for Testing */}
