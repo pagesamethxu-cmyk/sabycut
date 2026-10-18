@@ -17,6 +17,8 @@ import {
   FileText
 } from 'lucide-react';
 import { t } from '../../i18n';
+import { useIsMobile } from '../../hooks/useIsMobile';
+
 
 export interface ClipProperties {
   // Video & Transform
@@ -97,34 +99,57 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
     { id: 'zoom_in', label: 'Zoom In' }
   ];
 
-  return (
+  const isMobile = useIsMobile();
+
+  const inspectorCore = (
     <div style={{
-      width: '320px',
+      width: isMobile ? '100%' : '320px',
       backgroundColor: '#12141c',
-      borderLeft: '1px solid #232738',
+      borderLeft: isMobile ? 'none' : '1px solid #232738',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      zIndex: 25
+      overflow: 'hidden'
     }}>
+      {/* Mobile Drag Handle */}
+      {isMobile && (
+        <div style={{
+          width: '38px',
+          height: '4px',
+          borderRadius: '2px',
+          backgroundColor: '#475569',
+          margin: '8px auto 2px auto'
+        }} />
+      )}
+
       {/* Inspector Header */}
       <div style={{
-        padding: '12px 16px',
+        padding: isMobile ? '10px 16px' : '12px 16px',
         borderBottom: '1px solid #232738',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
         <div>
-          <span style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff' }}>
-            Clip Inspector
+          <span style={{ fontSize: isMobile ? '14px' : '13px', fontWeight: 800, color: '#ffffff' }}>
+            {clipTitle}
           </span>
-          <div style={{ fontSize: '11px', color: '#818cf8', fontWeight: 600, marginTop: '2px' }}>
-            {clipTitle} ({clipType.toUpperCase()})
-          </div>
+          <span style={{ marginLeft: '8px', fontSize: '10px', color: '#818cf8', fontWeight: 700, backgroundColor: 'rgba(129, 140, 248, 0.15)', padding: '2px 6px', borderRadius: '4px' }}>
+            {clipType.toUpperCase()}
+          </span>
         </div>
-        <button onClick={onClose} style={{ background: 'none', color: '#94a3b8', fontSize: '12px' }}>
-          Close
+        <button
+          onClick={onClose}
+          style={{
+            padding: isMobile ? '6px 14px' : '4px 8px',
+            borderRadius: '6px',
+            backgroundColor: isMobile ? '#4f46e5' : 'transparent',
+            color: isMobile ? '#ffffff' : '#94a3b8',
+            fontSize: isMobile ? '12px' : '12px',
+            fontWeight: isMobile ? 700 : 400
+          }}
+        >
+          {isMobile ? 'Done' : 'Close'}
         </button>
       </div>
 
@@ -133,9 +158,12 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
         display: 'flex',
         backgroundColor: '#0c0d13',
         borderBottom: '1px solid #232738',
-        padding: '4px'
+        padding: '4px',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch'
       }}>
         {clipType === 'video' && (
+
           <>
             <button
               onClick={() => setActiveTab('transform')}
@@ -678,4 +706,48 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
       </div>
     </div>
   );
+
+
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          zIndex: 80,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          backdropFilter: 'blur(3px)'
+        }}
+        onClick={onClose}
+      >
+        <div
+          style={{
+            height: '62vh',
+            maxHeight: '520px',
+            backgroundColor: '#12141c',
+            borderTop: '1px solid #333a50',
+            borderRadius: '20px 20px 0 0',
+            boxShadow: '0 -10px 40px rgba(0,0,0,0.8)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            paddingBottom: 'env(safe-area-inset-bottom, 12px)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {inspectorCore}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ zIndex: 25, height: '100%' }}>
+      {inspectorCore}
+    </div>
+  );
 };
+

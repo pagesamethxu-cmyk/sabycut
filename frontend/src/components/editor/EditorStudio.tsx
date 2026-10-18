@@ -27,6 +27,8 @@ import { AutoCutModal, AutoCutResult } from '../autocut/AutoCutModal';
 import { SettingsModal } from '../settings/SettingsModal';
 import { ClipInspector, ClipProperties } from './ClipInspector';
 import { ExportModal } from './ExportModal';
+import { useIsMobile } from '../../hooks/useIsMobile';
+
 
 export interface Clip {
   id: string;
@@ -82,11 +84,13 @@ const getPresetFilterCss = (preset: string) => {
 };
 
 export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoCutResult }) => {
+  const isMobile = useIsMobile();
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9' | '1:1'>('9:16');
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>('clip-v1');
-  const [isInspectorOpen, setIsInspectorOpen] = useState(true);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+
   const [zoom, setZoom] = useState(35); // px per second
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
 
@@ -553,193 +557,287 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
 
       {/* Studio Header */}
       <header style={{
-        height: '52px',
+        height: isMobile ? 'auto' : '52px',
+        paddingTop: isMobile ? 'max(env(safe-area-inset-top, 0px), 8px)' : '0px',
+        paddingBottom: isMobile ? '8px' : '0px',
+        paddingLeft: '12px',
+        paddingRight: '12px',
         backgroundColor: '#12141c',
         borderBottom: '1px solid #232738',
-        padding: '0 16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         zIndex: 20
       }}>
-        {/* Left: Back & Project Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={onBack}
-            style={{
-              padding: '6px',
-              borderRadius: '8px',
-              backgroundColor: '#1a1d2b',
-              color: '#cbd5e1',
-              border: '1px solid #292e44'
-            }}
-            title="Back to Dashboard"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <span style={{ fontSize: '15px', fontWeight: 800, color: '#ffffff' }}>
-            SABYCUT Studio
-          </span>
-          <span style={{ fontSize: '11px', color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-            CapCut Mode
-          </span>
-        </div>
-
-        {/* Center: Play, Pause, Scrub Reset, Aspect Ratio */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={() => {
-              setCurrentTime(0);
-              triggeredSFXRef.current.clear();
-            }}
-            style={{
-              padding: '6px 8px',
-              borderRadius: '6px',
-              backgroundColor: '#1a1d2b',
-              border: '1px solid #282d3f',
-              color: '#cbd5e1'
-            }}
-            title="Reset Playhead"
-          >
-            <RotateCcw size={14} />
-          </button>
-
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '6px',
-              backgroundColor: isPlaying ? '#eab308' : '#4f46e5',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 700
-            }}
-          >
-            {isPlaying ? <Pause size={14} /> : <Play size={14} />}
-            <span>{isPlaying ? t('editor.pause') : t('editor.play')}</span>
-          </button>
-
-          <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#818cf8', marginLeft: '6px' }}>
-            {formatTime(currentTime)} / {formatTime(totalDuration)}
-          </span>
-
-          <div style={{ display: 'flex', gap: '4px', backgroundColor: '#1a1d2b', padding: '3px', borderRadius: '6px', marginLeft: '6px' }}>
-            {(['9:16', '16:9', '1:1'] as const).map((r) => (
+        {isMobile ? (
+          <>
+            {/* Mobile Header: Left (Back), Center (Aspect ratio), Right (AutoCut & Export) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
-                key={r}
-                onClick={() => setAspectRatio(r)}
+                onClick={onBack}
                 style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: aspectRatio === r ? '#4f46e5' : 'transparent',
-                  color: aspectRatio === r ? '#ffffff' : '#94a3b8',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  color: '#cbd5e1',
+                  border: '1px solid #292e44',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Back to Dashboard"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff' }}>
+                SABYCUT
+              </span>
+            </div>
+
+            {/* Center: Aspect Ratio Pill */}
+            <div style={{ display: 'flex', gap: '2px', backgroundColor: '#1a1d2b', padding: '2px', borderRadius: '6px' }}>
+              {(['9:16', '16:9', '1:1'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setAspectRatio(r)}
+                  style={{
+                    padding: '3px 7px',
+                    borderRadius: '4px',
+                    backgroundColor: aspectRatio === r ? '#4f46e5' : 'transparent',
+                    color: aspectRatio === r ? '#ffffff' : '#94a3b8',
+                    fontSize: '11px',
+                    fontWeight: 700
+                  }}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+
+            {/* Right: AutoCut & Export */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={() => setIsAutoCutOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                  border: '1px solid rgba(167, 139, 250, 0.4)',
+                  color: '#c4b5fd',
                   fontSize: '11px',
+                  fontWeight: 700
+                }}
+                title="AI Auto Cut"
+              >
+                <Sparkles size={12} />
+                <span>AI</span>
+              </button>
+
+              <button
+                onClick={() => setIsExportOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  backgroundColor: '#10b981',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}
+              >
+                <Download size={13} />
+                <span>{t('nav.export')}</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Left: Back & Project Title */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={onBack}
+                style={{
+                  padding: '6px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  color: '#cbd5e1',
+                  border: '1px solid #292e44'
+                }}
+                title="Back to Dashboard"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <span style={{ fontSize: '15px', fontWeight: 800, color: '#ffffff' }}>
+                SABYCUT Studio
+              </span>
+              <span style={{ fontSize: '11px', color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                CapCut Mode
+              </span>
+            </div>
+
+            {/* Center: Play, Pause, Scrub Reset, Aspect Ratio */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  setCurrentTime(0);
+                  triggeredSFXRef.current.clear();
+                }}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: '#1a1d2b',
+                  border: '1px solid #282d3f',
+                  color: '#cbd5e1'
+                }}
+                title="Reset Playhead"
+              >
+                <RotateCcw size={14} />
+              </button>
+
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  backgroundColor: isPlaying ? '#eab308' : '#4f46e5',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}
+              >
+                {isPlaying ? <Pause size={14} /> : <Play size={14} />}
+                <span>{isPlaying ? t('editor.pause') : t('editor.play')}</span>
+              </button>
+
+              <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#818cf8', marginLeft: '6px' }}>
+                {formatTime(currentTime)} / {formatTime(totalDuration)}
+              </span>
+
+              <div style={{ display: 'flex', gap: '4px', backgroundColor: '#1a1d2b', padding: '3px', borderRadius: '6px', marginLeft: '6px' }}>
+                {(['9:16', '16:9', '1:1'] as const).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setAspectRatio(r)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: aspectRatio === r ? '#4f46e5' : 'transparent',
+                      color: aspectRatio === r ? '#ffffff' : '#94a3b8',
+                      fontSize: '11px',
+                      fontWeight: 600
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Import Video, AI Auto Cut, Inspector Toggle, Settings, Export */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1b1d28',
+                  border: '1px solid #2e344a',
+                  color: '#38bdf8',
+                  fontSize: '12px',
                   fontWeight: 600
                 }}
               >
-                {r}
+                <Upload size={14} />
+                <span>Import Video</span>
               </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Right: Import Video, AI Auto Cut, Inspector Toggle, Settings, Export */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              backgroundColor: '#1b1d28',
-              border: '1px solid #2e344a',
-              color: '#38bdf8',
-              fontSize: '12px',
-              fontWeight: 600
-            }}
-          >
-            <Upload size={14} />
-            <span>Import Video</span>
-          </button>
+              <button
+                onClick={() => setIsAutoCutOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                  border: '1px solid rgba(167, 139, 250, 0.4)',
+                  color: '#c4b5fd',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}
+              >
+                <Sparkles size={14} />
+                <span>{t('autocut.title')}</span>
+              </button>
 
-          <button
-            onClick={() => setIsAutoCutOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(167, 139, 250, 0.15)',
-              border: '1px solid rgba(167, 139, 250, 0.4)',
-              color: '#c4b5fd',
-              fontSize: '12px',
-              fontWeight: 700
-            }}
-          >
-            <Sparkles size={14} />
-            <span>{t('autocut.title')}</span>
-          </button>
+              <button
+                onClick={() => setIsInspectorOpen(!isInspectorOpen)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: isInspectorOpen ? 'rgba(99, 102, 241, 0.2)' : '#1a1d2b',
+                  border: isInspectorOpen ? '1px solid #818cf8' : '1px solid #292e44',
+                  color: isInspectorOpen ? '#818cf8' : '#cbd5e1',
+                  fontSize: '12px'
+                }}
+                title="Toggle Inspector"
+              >
+                <Sliders size={14} />
+                <span>Inspector</span>
+              </button>
 
-          <button
-            onClick={() => setIsInspectorOpen(!isInspectorOpen)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              backgroundColor: isInspectorOpen ? 'rgba(99, 102, 241, 0.2)' : '#1a1d2b',
-              border: isInspectorOpen ? '1px solid #818cf8' : '1px solid #292e44',
-              color: isInspectorOpen ? '#818cf8' : '#cbd5e1',
-              fontSize: '12px'
-            }}
-            title="Toggle Inspector"
-          >
-            <Sliders size={14} />
-            <span>Inspector</span>
-          </button>
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                style={{
+                  padding: '7px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  border: '1px solid #292e44',
+                  color: '#cbd5e1'
+                }}
+              >
+                <SettingsIcon size={14} />
+              </button>
 
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            style={{
-              padding: '7px',
-              borderRadius: '8px',
-              backgroundColor: '#1a1d2b',
-              border: '1px solid #292e44',
-              color: '#cbd5e1'
-            }}
-          >
-            <SettingsIcon size={14} />
-          </button>
-
-          <button
-            onClick={() => setIsExportOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              backgroundColor: '#10b981',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 700
-            }}
-          >
-            <Download size={14} />
-            <span>{t('nav.export')}</span>
-          </button>
-        </div>
+              <button
+                onClick={() => setIsExportOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: '#10b981',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}
+              >
+                <Download size={14} />
+                <span>{t('nav.export')}</span>
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
+
       {/* Main Center Area: Player Viewport + Clip Inspector */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
         {/* Center Viewport Preview */}
         <div style={{
           flex: 1,
@@ -752,8 +850,10 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
         }}>
           {/* Canvas Player Box */}
           <div style={{
-            width: aspectRatio === '9:16' ? '280px' : aspectRatio === '16:9' ? '540px' : '360px',
-            height: aspectRatio === '9:16' ? '498px' : aspectRatio === '16:9' ? '304px' : '360px',
+            width: aspectRatio === '9:16' ? (isMobile ? '180px' : '280px') : aspectRatio === '16:9' ? (isMobile ? '310px' : '540px') : (isMobile ? '230px' : '360px'),
+            height: aspectRatio === '9:16' ? (isMobile ? '320px' : '498px') : aspectRatio === '16:9' ? (isMobile ? '174px' : '304px') : (isMobile ? '230px' : '360px'),
+            maxHeight: isMobile ? '38vh' : 'none',
+            maxWidth: isMobile ? '92vw' : 'none',
             backgroundColor: '#0f1118',
             border: '1px solid #23273a',
             borderRadius: '12px',
@@ -765,6 +865,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
             overflow: 'hidden',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
           }}>
+
             {/* Real Video Player with live CSS Transform and Color Grading */}
             {videoSrc ? (
               <video
@@ -853,7 +954,65 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
           </div>
         </div>
 
-        {/* Clip Inspector Sidebar */}
+        {/* Mobile Scrubber Controls Bar */}
+        {isMobile && (
+          <div style={{
+            height: '44px',
+            backgroundColor: '#0d0f16',
+            borderTop: '1px solid #1f2334',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 16px',
+            flexShrink: 0
+          }}>
+            <button
+              onClick={() => {
+                setCurrentTime(0);
+                triggeredSFXRef.current.clear();
+              }}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                backgroundColor: '#1a1d2b',
+                color: '#cbd5e1',
+                border: '1px solid #282d3f',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '11px'
+              }}
+              title="Reset Playhead"
+            >
+              <RotateCcw size={13} />
+              <span>Reset</span>
+            </button>
+
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 20px',
+                borderRadius: '20px',
+                backgroundColor: isPlaying ? '#eab308' : '#4f46e5',
+                color: '#ffffff',
+                fontSize: '13px',
+                fontWeight: 700
+              }}
+            >
+              {isPlaying ? <Pause size={15} /> : <Play size={15} />}
+              <span>{isPlaying ? t('editor.pause') : t('editor.play')}</span>
+            </button>
+
+            <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#818cf8', fontWeight: 600 }}>
+              {formatTime(currentTime)} / {formatTime(totalDuration)}
+            </span>
+          </div>
+        )}
+
+        {/* Clip Inspector */}
         {isInspectorOpen && selectedClip && (
           <ClipInspector
             clipType={selectedClip.type}
@@ -867,24 +1026,49 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({ onBack, initialAutoC
 
       {/* Bottom Timeline Section (CapCut Multi-track) */}
       <div style={{
-        height: '240px',
+        height: isMobile ? '200px' : '240px',
         backgroundColor: '#10121a',
         borderTop: '1px solid #232738',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        paddingBottom: isMobile ? 'max(env(safe-area-inset-bottom, 0px), 8px)' : '0px'
       }}>
         {/* Timeline Tools */}
         <div style={{
-          height: '38px',
+          height: isMobile ? '46px' : '38px',
           backgroundColor: '#151722',
           borderBottom: '1px solid #232738',
-          padding: '0 16px',
+          padding: '0 12px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: isMobile ? 'flex-start' : 'space-between',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          gap: '8px'
         }}>
           {/* Editing Tools */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            {/* Mobile Inspector / Adjust Button */}
+            {isMobile && selectedClip && (
+              <button
+                onClick={() => setIsInspectorOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  backgroundColor: '#4f46e5',
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: 700
+                }}
+              >
+                <Sliders size={13} />
+                <span>Adjust</span>
+              </button>
+            )}
+
             <button
               onClick={handleSplit}
               style={{

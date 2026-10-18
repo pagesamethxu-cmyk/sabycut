@@ -19,10 +19,13 @@ import { User } from './types';
 import { EditorStudio } from './components/editor/EditorStudio';
 import { AutoCutModal, AutoCutResult } from './components/autocut/AutoCutModal';
 import { SettingsModal } from './components/settings/SettingsModal';
+import { useIsMobile } from './hooks/useIsMobile';
 
 export function App() {
+  const isMobile = useIsMobile();
   const [lang, setLang] = useState<SupportedLanguage>('km');
   const [isI18nReady, setIsI18nReady] = useState(false);
+
   const [user, setUser] = useState<User | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -117,86 +120,95 @@ export function App() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0a0b10' }}>
       {/* Top Navigation */}
       <header style={{
-        height: '56px',
+        height: isMobile ? 'auto' : '56px',
+        paddingTop: isMobile ? 'max(env(safe-area-inset-top, 0px), 12px)' : '0px',
+        paddingBottom: isMobile ? '12px' : '0px',
+        paddingLeft: '16px',
+        paddingRight: '16px',
         backgroundColor: '#12141c',
         borderBottom: '1px solid #232738',
-        padding: '0 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
-            width: '34px',
-            height: '34px',
+            width: '32px',
+            height: '32px',
             borderRadius: '8px',
             backgroundColor: '#4f46e5',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <Scissors size={20} color="#ffffff" />
+            <Scissors size={18} color="#ffffff" />
           </div>
           <div>
             <span style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.5px' }}>
               SABYCUT
             </span>
-            <span style={{
-              marginLeft: '8px',
-              fontSize: '10px',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              backgroundColor: 'rgba(99, 102, 241, 0.2)',
-              color: '#818cf8',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
-              fontWeight: 600
-            }}>
-              Core Engine
-            </span>
+            {!isMobile && (
+              <span style={{
+                marginLeft: '8px',
+                fontSize: '10px',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                color: '#818cf8',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                fontWeight: 600
+              }}>
+                Core Engine
+              </span>
+            )}
           </div>
         </div>
 
         {/* Header Right Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Open Editor Studio Directly */}
-          <button
-            onClick={() => setCurrentView('editor')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              backgroundColor: '#4f46e5',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 700
-            }}
-          >
-            <Film size={14} />
-            <span>{t('nav.newProject')}</span>
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {!isMobile && (
+            <>
+              {/* Open Editor Studio Directly */}
+              <button
+                onClick={() => setCurrentView('editor')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: '#4f46e5',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}
+              >
+                <Film size={14} />
+                <span>{t('nav.newProject')}</span>
+              </button>
 
-          {/* AI Auto Cut Button */}
-          <button
-            onClick={() => setIsAutoCutOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(167, 139, 250, 0.15)',
-              border: '1px solid rgba(167, 139, 250, 0.4)',
-              color: '#c4b5fd',
-              fontSize: '12px',
-              fontWeight: 700
-            }}
-          >
-            <Sparkles size={14} />
-            <span>{t('nav.autoCut')}</span>
-          </button>
+              {/* AI Auto Cut Button */}
+              <button
+                onClick={() => setIsAutoCutOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                  border: '1px solid rgba(167, 139, 250, 0.4)',
+                  color: '#c4b5fd',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}
+              >
+                <Sparkles size={14} />
+                <span>{t('nav.autoCut')}</span>
+              </button>
+            </>
+          )}
 
           {/* Settings Button */}
           <button
@@ -219,8 +231,8 @@ export function App() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
+              gap: '4px',
+              padding: '6px 10px',
               borderRadius: '8px',
               backgroundColor: '#1b1d28',
               border: '1px solid #2a2f42',
@@ -229,27 +241,29 @@ export function App() {
               fontWeight: 600
             }}
           >
-            <Globe size={14} color="#818cf8" />
-            <span>{lang === 'km' ? 'ភាសាខ្មែរ (Khmer)' : 'English'}</span>
+            <Globe size={13} color="#818cf8" />
+            <span>{lang === 'km' ? 'ខ្មែរ' : 'EN'}</span>
           </button>
 
           {/* User Status / Login Button */}
           {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                backgroundColor: '#1b1d28',
-                border: '1px solid #2a2f42',
-                color: '#e2e8f0',
-                fontSize: '12px'
-              }}>
-                <UserIcon size={14} color="#34d399" />
-                <span>{user.username}</span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {!isMobile && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1b1d28',
+                  border: '1px solid #2a2f42',
+                  color: '#e2e8f0',
+                  fontSize: '12px'
+                }}>
+                  <UserIcon size={14} color="#34d399" />
+                  <span>{user.username}</span>
+                </div>
+              )}
               <button
                 onClick={handleLogout}
                 title={t('auth.logout')}
@@ -273,8 +287,8 @@ export function App() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
+                gap: '4px',
+                padding: '6px 10px',
                 borderRadius: '8px',
                 backgroundColor: '#1b1d28',
                 border: '1px solid #2a2f42',
@@ -284,7 +298,7 @@ export function App() {
               }}
             >
               <UserIcon size={14} />
-              <span>{t('auth.login')}</span>
+              {!isMobile && <span>{t('auth.login')}</span>}
             </button>
           )}
         </div>
@@ -294,188 +308,329 @@ export function App() {
       <main style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '30px 20px',
+        padding: isMobile ? '16px' : '30px 20px',
         maxWidth: '1100px',
         margin: '0 auto',
-        width: '100%'
+        width: '100%',
+        paddingBottom: isMobile ? 'max(env(safe-area-inset-bottom, 0px), 24px)' : '30px'
       }}>
-        {/* Welcome Section */}
-        <div style={{
-          backgroundColor: '#13151f',
-          borderRadius: '16px',
-          border: '1px solid #23273a',
-          padding: '28px',
-          marginBottom: '24px'
-        }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', marginBottom: '8px' }}>
-            {t('app.title')}
-          </h1>
-          <p style={{ fontSize: '14px', color: '#94a3b8', lineHeight: '1.6' }}>
-            {t('app.subtitle')}
-          </p>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '20px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              backgroundColor: '#1a1d2b',
-              border: '1px solid #292e44',
-              fontSize: '12px',
-              color: '#cbd5e1'
-            }}>
-              <ShieldCheck size={16} color="#34d399" />
-              <span>Backend Core: Spring Boot (Java 21)</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              backgroundColor: '#1a1d2b',
-              border: '1px solid #292e44',
-              fontSize: '12px',
-              color: '#cbd5e1'
-            }}>
-              <Sparkles size={16} color="#a78bfa" />
-              <span>AI Service: Flask + PySceneDetect + Whisper</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              backgroundColor: '#1a1d2b',
-              border: '1px solid #292e44',
-              fontSize: '12px',
-              color: '#cbd5e1'
-            }}>
-              <Smartphone size={16} color="#38bdf8" />
-              <span>Packaging: PWA + Capacitor (Android / iOS)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Feature Cards Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {/* Card 1: Project Creator -> Opens EditorStudio */}
-          <div style={{
-            backgroundColor: '#13151f',
-            borderRadius: '14px',
-            border: '1px solid #23273a',
-            padding: '20px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <FolderPlus size={20} color="#818cf8" />
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
-                {t('nav.newProject')}
-              </h3>
-            </div>
-            <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
-              {t('editor.tracks')} - Multi-track timeline (Video, Audio, SFX, Text/Captions).
-            </p>
-            <button
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Big Blue CapCut Style "New Project" Hero Button */}
+            <div
               onClick={() => setCurrentView('editor')}
               style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
                 backgroundColor: '#4f46e5',
-                color: '#ffffff',
-                fontSize: '13px',
-                fontWeight: 600,
+                borderRadius: '20px',
+                padding: '30px 20px',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px'
+                gap: '12px',
+                cursor: 'pointer',
+                boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)',
+                textAlign: 'center'
               }}
             >
-              <Film size={16} />
-              <span>{t('nav.newProject')} (Open Editor)</span>
-            </button>
-          </div>
-
-          {/* Card 2: AI Auto Cut -> Opens AutoCutModal */}
-          <div style={{
-            backgroundColor: '#13151f',
-            borderRadius: '14px',
-            border: '1px solid #23273a',
-            padding: '20px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <Sparkles size={20} color="#a78bfa" />
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
-                {t('autocut.title')}
-              </h3>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '16px',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Film size={32} color="#ffffff" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
+                  {t('nav.newProject')}
+                </h2>
+                <p style={{ fontSize: '12px', color: '#c7d2fe', marginTop: '4px' }}>
+                  {lang === 'km' ? 'ចុចទីនេះដើម្បីចាប់ផ្ដើមកាត់តវីដេអូ' : 'Tap to start editing your video'}
+                </p>
+              </div>
             </div>
-            <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
-              {t('autocut.description')}
-            </p>
-            <button
-              onClick={() => setIsAutoCutOpen(true)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                backgroundColor: '#1f2233',
-                border: '1px solid #323852',
-                color: '#cbd5e1',
-                fontSize: '13px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              <Sparkles size={16} color="#a78bfa" />
-              <span>{t('autocut.selectForm')}</span>
-            </button>
-          </div>
 
-          {/* Card 3: Encrypted Vault Settings -> Opens SettingsModal */}
-          <div style={{
-            backgroundColor: '#13151f',
-            borderRadius: '14px',
-            border: '1px solid #23273a',
-            padding: '20px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <SettingsIcon size={20} color="#34d399" />
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
-                {t('settings.apiKeyTitle')}
-              </h3>
+            {/* Quick Actions Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div
+                onClick={() => setIsAutoCutOpen(true)}
+                style={{
+                  backgroundColor: '#161926',
+                  border: '1px solid #282f47',
+                  borderRadius: '16px',
+                  padding: '16px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Sparkles size={20} color="#a78bfa" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                    {t('autocut.title')}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+                    Auto Cut AI
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setIsSettingsOpen(true)}
+                style={{
+                  backgroundColor: '#161926',
+                  border: '1px solid #282f47',
+                  borderRadius: '16px',
+                  padding: '16px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(52, 211, 153, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <SettingsIcon size={20} color="#34d399" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                    {t('settings.title')}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+                    API Keys
+                  </div>
+                </div>
+              </div>
             </div>
-            <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
-              {t('settings.apiKeyDesc')}
-            </p>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                backgroundColor: '#1f2233',
-                border: '1px solid #323852',
-                color: '#cbd5e1',
-                fontSize: '13px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              <SettingsIcon size={16} color="#34d399" />
-              <span>{t('settings.title')}</span>
-            </button>
+
+            {/* Architecture Highlights Pill */}
+            <div style={{
+              backgroundColor: '#12141d',
+              border: '1px solid #222638',
+              borderRadius: '14px',
+              padding: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#94a3b8' }}>
+                <ShieldCheck size={14} color="#34d399" />
+                <span>Spring Boot Core (Java 21)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#94a3b8' }}>
+                <Sparkles size={14} color="#a78bfa" />
+                <span>HarfBuzz Khmer Subtitle Shaping</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#94a3b8' }}>
+                <Smartphone size={14} color="#38bdf8" />
+                <span>iOS Native App Package (SABYCUT.ipa)</span>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Welcome Section */}
+            <div style={{
+              backgroundColor: '#13151f',
+              borderRadius: '16px',
+              border: '1px solid #23273a',
+              padding: '28px',
+              marginBottom: '24px'
+            }}>
+              <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', marginBottom: '8px' }}>
+                {t('app.title')}
+              </h1>
+              <p style={{ fontSize: '14px', color: '#94a3b8', lineHeight: '1.6' }}>
+                {t('app.subtitle')}
+              </p>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '20px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  border: '1px solid #292e44',
+                  fontSize: '12px',
+                  color: '#cbd5e1'
+                }}>
+                  <ShieldCheck size={16} color="#34d399" />
+                  <span>Backend Core: Spring Boot (Java 21)</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  border: '1px solid #292e44',
+                  fontSize: '12px',
+                  color: '#cbd5e1'
+                }}>
+                  <Sparkles size={16} color="#a78bfa" />
+                  <span>AI Service: Flask + PySceneDetect + Whisper</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1a1d2b',
+                  border: '1px solid #292e44',
+                  fontSize: '12px',
+                  color: '#cbd5e1'
+                }}>
+                  <Smartphone size={16} color="#38bdf8" />
+                  <span>Packaging: PWA + Capacitor (Android / iOS)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature Cards Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+              {/* Card 1: Project Creator -> Opens EditorStudio */}
+              <div style={{
+                backgroundColor: '#13151f',
+                borderRadius: '14px',
+                border: '1px solid #23273a',
+                padding: '20px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <FolderPlus size={20} color="#818cf8" />
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
+                    {t('nav.newProject')}
+                  </h3>
+                </div>
+                <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
+                  {t('editor.tracks')} - Multi-track timeline (Video, Audio, SFX, Text/Captions).
+                </p>
+                <button
+                  onClick={() => setCurrentView('editor')}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    backgroundColor: '#4f46e5',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Film size={16} />
+                  <span>{t('nav.newProject')} (Open Editor)</span>
+                </button>
+              </div>
+
+              {/* Card 2: AI Auto Cut -> Opens AutoCutModal */}
+              <div style={{
+                backgroundColor: '#13151f',
+                borderRadius: '14px',
+                border: '1px solid #23273a',
+                padding: '20px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <Sparkles size={20} color="#a78bfa" />
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
+                    {t('autocut.title')}
+                  </h3>
+                </div>
+                <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
+                  {t('autocut.description')}
+                </p>
+                <button
+                  onClick={() => setIsAutoCutOpen(true)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    backgroundColor: '#1f2233',
+                    border: '1px solid #323852',
+                    color: '#cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Sparkles size={16} color="#a78bfa" />
+                  <span>{t('autocut.selectForm')}</span>
+                </button>
+              </div>
+
+              {/* Card 3: Encrypted Vault Settings -> Opens SettingsModal */}
+              <div style={{
+                backgroundColor: '#13151f',
+                borderRadius: '14px',
+                border: '1px solid #23273a',
+                padding: '20px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <SettingsIcon size={20} color="#34d399" />
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
+                    {t('settings.apiKeyTitle')}
+                  </h3>
+                </div>
+                <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '16px' }}>
+                  {t('settings.apiKeyDesc')}
+                </p>
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    backgroundColor: '#1f2233',
+                    border: '1px solid #323852',
+                    color: '#cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <SettingsIcon size={16} color="#34d399" />
+                  <span>{t('settings.title')}</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </main>
+
 
       {/* Global Modals */}
       <AutoCutModal
