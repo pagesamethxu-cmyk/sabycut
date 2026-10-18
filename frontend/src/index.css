@@ -41,7 +41,10 @@ html, body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   user-select: none;
+  touch-action: pan-x pan-y;
   text-rendering: optimizeLegibility;
 }
 
@@ -54,6 +57,14 @@ html, body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  touch-action: pan-x pan-y;
+}
+
+/* Prevent iOS auto-zoom on focus for form elements */
+@media screen and (max-width: 896px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Touch Targets: minimum 44x44 px */

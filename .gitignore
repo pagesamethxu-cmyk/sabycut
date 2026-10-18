@@ -7,6 +7,8 @@ push_to_github.ps1
 *.ipa
 *.exe
 *.mp4
+scripts/download_ipa.js
+
 
 
 # Node / Frontend

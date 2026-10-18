@@ -22,6 +22,9 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'always',
     preferredContentMode: 'mobile',
+    limitsNavigationsToAppBoundDomains: false,
+    allowsLinkPreview: false,
+    scrollEnabled: false,
   },
   android: {
     allowMixedContent: true,
